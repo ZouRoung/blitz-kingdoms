@@ -1,11 +1,11 @@
-[gd_scene load_steps=12 format=3 uid="uid://dgwfbsoxmqpuo"]
+[gd_scene load_steps=12 format=3 uid="uid://cexqy5rvxss56"]
 
-[ext_resource type="Script" uid="uid://bjhmdhfi0phqg" path="res://OBJECTS/UNITS/unit_warrior.gd" id="1_hvicf"]
-[ext_resource type="Texture2D" uid="uid://dehn6x4pu5e8h" path="res://ASSETS/SPRITES/UNITS/WARRIOR/warrior_body.png" id="2_hsb61"]
-[ext_resource type="Texture2D" uid="uid://ctudhm52emcvk" path="res://ASSETS/SPRITES/UNITS/WARRIOR/warrior_head.png" id="3_i6yu3"]
-[ext_resource type="Texture2D" uid="uid://yovag4o25sev" path="res://ASSETS/SPRITES/UNITS/WARRIOR/warrior_sword.png" id="3_j1aps"]
-[ext_resource type="Texture2D" uid="uid://c6u8k7ti0hq36" path="res://ASSETS/SPRITES/UNITS/WARRIOR/warrior_shadow.png" id="4_qp1b0"]
-[ext_resource type="Texture2D" uid="uid://5s18alm7m4n5" path="res://ASSETS/SPRITES/UNITS/WARRIOR/warrior_shield.png" id="5_l6slk"]
+[ext_resource type="Script" uid="uid://cn7kdud0q882" path="res://OBJECTS/UNITS/unit_script.gd" id="1_xk7b7"]
+[ext_resource type="Texture2D" uid="uid://c6u8k7ti0hq36" path="res://ASSETS/SPRITES/UNITS/WARRIOR/warrior_shadow.png" id="2_e3ab8"]
+[ext_resource type="Texture2D" uid="uid://yovag4o25sev" path="res://ASSETS/SPRITES/UNITS/WARRIOR/warrior_sword.png" id="3_stoig"]
+[ext_resource type="Texture2D" uid="uid://dehn6x4pu5e8h" path="res://ASSETS/SPRITES/UNITS/WARRIOR/warrior_body.png" id="4_pj2tc"]
+[ext_resource type="Texture2D" uid="uid://ctudhm52emcvk" path="res://ASSETS/SPRITES/UNITS/WARRIOR/warrior_head.png" id="5_kauf2"]
+[ext_resource type="Texture2D" uid="uid://5s18alm7m4n5" path="res://ASSETS/SPRITES/UNITS/WARRIOR/warrior_shield.png" id="6_yn7ag"]
 
 [sub_resource type="Animation" id="Animation_4x731"]
 length = 0.001
@@ -464,27 +464,27 @@ size = Vector2(16, 8.5)
 
 [node name="Unit_warrior" type="CharacterBody2D"]
 scale = Vector2(0.5, 0.5)
-script = ExtResource("1_hvicf")
+script = ExtResource("1_xk7b7")
 
 [node name="unit" type="Node2D" parent="."]
 scale = Vector2(2, 2)
 
 [node name="shadow" type="Sprite2D" parent="unit"]
-texture = ExtResource("4_qp1b0")
+texture = ExtResource("2_e3ab8")
 
 [node name="base" type="Node2D" parent="unit"]
 
 [node name="sword" type="Sprite2D" parent="unit/base"]
-texture = ExtResource("3_j1aps")
+texture = ExtResource("3_stoig")
 
 [node name="body" type="Sprite2D" parent="unit/base"]
-texture = ExtResource("2_hsb61")
+texture = ExtResource("4_pj2tc")
 
 [node name="head" type="Sprite2D" parent="unit/base"]
-texture = ExtResource("3_i6yu3")
+texture = ExtResource("5_kauf2")
 
 [node name="shield" type="Sprite2D" parent="unit/base"]
-texture = ExtResource("5_l6slk")
+texture = ExtResource("6_yn7ag")
 
 [node name="ani" type="AnimationPlayer" parent="."]
 libraries = {
