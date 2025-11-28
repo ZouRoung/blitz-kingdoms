@@ -103,6 +103,8 @@ var water_cells : Dictionary = {}
 @onready var ground_details_tilemap : TileMapLayer = $groundDetailsTileMap
 @onready var resource_tilemap : TileMapLayer = $resourceTileMap
 
+var resource_data_map : Dictionary = {}
+
 func _ready():
 	setup_noise()
 	generate_world()
@@ -355,16 +357,47 @@ func place_random_resource(cell: Vector2i, placed_resources: Dictionary):
 	else: place_single_resource(cell, tree_tiles, placed_resources)
 
 func place_single_resource(cell: Vector2i, tile_list: Array[Vector2i], placed_resources: Dictionary):
-	var index = randi() % tile_list.size()
-	resource_tilemap.set_cell(cell, 0, tile_list[index])
+	## ERST: Supply-Wert generieren
+	var resource_type = get_resource_type_from_tiles(tile_list)
+	var supply = get_resource_supply(resource_type)
+	
+	## DANN: Passenden Sprite-Index basierend auf Supply wählen
+	var sprite_index = get_sprite_index_for_supply(supply)
+	
+	## Sprite setzen (tile_list[sprite_index] gibt das richtige Sprite zurück)
+	var atlas_coord = tile_list[sprite_index]
+	resource_tilemap.set_cell(cell, 0, atlas_coord)
 	placed_resources[cell] = true
+	
+	## ResourceData erstellen mit dem generierten Supply
+	var res_data = ResourceData.new()
+	res_data.world_position = cell
+	res_data.resource_type = resource_type
+	res_data.max_supply = supply
+	res_data.current_supply = supply
+	
+	resource_data_map[cell] = res_data
 
 func place_forest_tree(cell: Vector2i, forest_strength: float, placed_resources: Dictionary):
-	var density = (forest_strength - forest_threshold) / (1.0 - forest_threshold)
-	density = clamp(pow(clamp(density, 0.0, 1.0), 1.5), 0.0, 1.0)
-	var tree_index = 0 if density < 0.3 else (1 if density < 0.65 else 2)
+	## Supply generieren
+	var supply = get_resource_supply("tree")
+	
+	## Sprite-Index basierend auf Supply wählen
+	var tree_index = get_sprite_index_for_supply(supply)
+	
+	## Sprite setzen
 	resource_tilemap.set_cell(cell, 0, tree_tiles[tree_index])
 	placed_resources[cell] = true
+	
+	## ResourceData mit generiertem Supply erstellen
+	var res_data = ResourceData.new()
+	res_data.world_position = cell
+	res_data.resource_type = "tree"
+	res_data.max_supply = supply
+	res_data.current_supply = supply
+	
+	resource_data_map[cell] = res_data
+
 
 func place_berry_cluster(cell: Vector2i, placed_resources: Dictionary):
 	for dx in range(-berry_cluster_size/2, berry_cluster_size/2 + 1):
@@ -374,3 +407,59 @@ func place_berry_cluster(cell: Vector2i, placed_resources: Dictionary):
 				if c.x >= 0 and c.x < map_width and c.y >= 0 and c.y < map_height:
 					if not placed_resources.has(c) and not water_cells.has(c):
 						place_single_resource(c, berry_tiles, placed_resources)
+
+func get_resource_supply(resource_type: String) -> int:
+	## Mögliche Supply-Werte für alle Ressourcen
+	var possible_values = [3000, 5000, 7500, 10000, 12500, 15000]
+	
+	## Wähle einen zufälligen Wert aus dem Array
+	var random_index = randi() % possible_values.size()
+	return possible_values[random_index]
+
+func get_sprite_index_for_supply(supply: int) -> int:
+	## Ab 10.000 Supply: 3 Bäume/Steine (Index 2)
+	if supply >= 10000:
+		return 2
+	## Ab 5.000 Supply: 2 Bäume/Steine (Index 1)
+	elif supply >= 5000:
+		return 1
+	## Unter 5.000 Supply: 1 Baum/Stein (Index 0)
+	else:
+		return 0
+
+
+func get_resource_type_from_atlas(atlas_coord: Vector2i) -> String:
+	if atlas_coord in tree_tiles: return "tree"
+	if atlas_coord in stone_tiles: return "stone"
+	if atlas_coord in iron_tiles: return "iron"
+	if atlas_coord in gold_tiles: return "gold"
+	if atlas_coord in berry_tiles: return "berry"
+	return "unknown"
+
+func get_resource_type_from_tiles(tile_list: Array[Vector2i]) -> String:
+	## Prüfe, welche Liste übergeben wurde
+	if tile_list == tree_tiles: return "tree"
+	if tile_list == stone_tiles: return "stone"
+	if tile_list == iron_tiles: return "iron"
+	if tile_list == gold_tiles: return "gold"
+	if tile_list == berry_tiles: return "berry"
+	return "unknown"
+
+
+func _input(event: InputEvent):
+	if event is InputEventMouseButton:
+		if event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+			## Mausposition zu Tile-Koordinaten konvertieren
+			var mouse_pos = get_global_mouse_position()
+			var tile_pos = resource_tilemap.local_to_map(resource_tilemap.to_local(mouse_pos))
+			
+			## Prüfen, ob auf dieser Position eine Ressource existiert
+			if resource_data_map.has(tile_pos):
+				show_resource_info(resource_data_map[tile_pos])
+
+func show_resource_info(res_data: ResourceData):
+	print("=== RESSOURCE INFO ===")
+	print("Typ: ", res_data.resource_type.capitalize())
+	print("Supply: ", res_data.current_supply, " / ", res_data.max_supply)
+	print("Position: ", res_data.world_position)
+	print("======================")
