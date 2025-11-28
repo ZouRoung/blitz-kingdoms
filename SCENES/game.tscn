@@ -1,0 +1,10 @@
+[gd_scene load_steps=3 format=3 uid="uid://b7xg1gvgkvcnq"]
+
+[ext_resource type="PackedScene" uid="uid://c0fi1s61yiopx" path="res://OBJECTS/world_gen.tscn" id="1_2sn7y"]
+[ext_resource type="PackedScene" uid="uid://biqfubitmbq7w" path="res://OBJECTS/game_handler.tscn" id="2_w4tjv"]
+
+[node name="game" type="Node2D"]
+
+[node name="worldGen" parent="." instance=ExtResource("1_2sn7y")]
+
+[node name="gameHandler" parent="." instance=ExtResource("2_w4tjv")]

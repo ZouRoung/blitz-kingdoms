@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="Blitz Kingdoms"
-run/main_scene="uid://c0fi1s61yiopx"
+run/main_scene="uid://b7xg1gvgkvcnq"
 config/features=PackedStringArray("4.5", "Forward Plus")
 config/icon="res://icon.svg"
 

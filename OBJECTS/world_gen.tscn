@@ -1,6 +1,6 @@
 [gd_scene load_steps=6 format=3 uid="uid://c0fi1s61yiopx"]
 
-[ext_resource type="Script" path="res://SCRIPTS/world_gen.gd" id="1_cxs8o"]
+[ext_resource type="Script" uid="uid://bkwu6qscdi46r" path="res://SCRIPTS/world_gen.gd" id="1_cxs8o"]
 [ext_resource type="Texture2D" uid="uid://bftmwi43qb22r" path="res://ASSETS/SPRITES/WORLD/world_tileset.png" id="1_pf3a2"]
 [ext_resource type="PackedScene" uid="uid://qlc1aey12b3o" path="res://OBJECTS/camera.tscn" id="3_ik2su"]
 
