@@ -1,9 +1,10 @@
 extends CharacterBody2D
 
 @export_group("Movement")
-@export var move_speed : float = 150.0
-@export var acceleration : float = 600.0
-@export var friction : float = 500.0
+@export var move_speed : float = 25.0
+@export var acceleration : float = 400.0
+@export var friction : float = 600.0
+@export var stop_distance : float = 2.0
 
 @export_group("References")
 @export var sprite_container : Node2D
@@ -12,12 +13,10 @@ var current_velocity := Vector2.ZERO
 var target_position : Vector2
 var is_moving := false
 
-## Animation
 @onready var animation_player : AnimationPlayer = $ani
 @onready var unit_node : Node2D = $unit
 
 func _ready():
-	## Falls sprite_container nicht manuell gesetzt wurde, nutze das "unit" Node
 	if sprite_container == null:
 		sprite_container = unit_node
 	
@@ -31,17 +30,16 @@ func _physics_process(delta: float):
 func update_movement(delta: float):
 	var distance_to_target = global_position.distance_to(target_position)
 	
-	if distance_to_target > 5.0:
-		## Richtung zum Ziel berechnen
+	## Wenn wir am Ziel sind -> Stoppen und zurücksetzen
+	if distance_to_target <= stop_distance:
+		current_velocity = Vector2.ZERO
+		is_moving = false
+		target_position = global_position
+	else:
+		## Noch nicht am Ziel -> Bewegen
 		var direction = (target_position - global_position).normalized()
-		
-		## Beschleunigung anwenden
 		current_velocity = current_velocity.move_toward(direction * move_speed, acceleration * delta)
 		is_moving = true
-	else:
-		## Am Ziel angekommen -> Abbremsen
-		current_velocity = current_velocity.move_toward(Vector2.ZERO, friction * delta)
-		is_moving = false
 	
 	velocity = current_velocity
 	move_and_slide()
@@ -53,11 +51,10 @@ func update_animation():
 		animation_player.play("idle")
 
 func update_sprite_direction():
-	## Basierend auf Bewegungsrichtung: Links (scale.x = -1) oder Rechts (scale.x = 1)
+	## Nur X-Scale ändern für Richtung
 	if current_velocity.x != 0:
-		sprite_container.scale.x = -1.0 if current_velocity.x < 0 else 1.0
+		$unit.scale.x = -2.0 if current_velocity.x < 0 else 2.0
 
-## Wird vom GameHandler aufgerufen, wenn der Spieler einen Befehl gibt
 func set_target(new_target: Vector2):
 	target_position = new_target
 

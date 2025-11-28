@@ -2,7 +2,6 @@ extends Node2D
 
 @export_group("Input Settings")
 @export var selection_color : Color = Color.YELLOW
-@export var selection_scale : float = 1.1
 
 @export_group("Debug")
 @export var warrior_scene : PackedScene
@@ -14,7 +13,6 @@ var hovering_unit : CharacterBody2D = null
 @onready var world_gen : Node2D = get_parent().get_node("worldGen")
 
 func _ready():
-	## Falls spawn_container nicht gesetzt, nutze parent's Units Node
 	if spawn_container == null:
 		var parent = get_parent()
 		if parent.has_node("Units"):
@@ -30,7 +28,6 @@ func _input(event: InputEvent):
 			elif event.button_index == MOUSE_BUTTON_RIGHT:
 				handle_right_click(mouse_pos)
 	
-	## DEBUG: F1 - Warrior an Mausposition spawnen
 	if event is InputEventKey and event.pressed:
 		if event.keycode == KEY_F1:
 			spawn_warrior_at_mouse()
@@ -38,7 +35,6 @@ func _input(event: InputEvent):
 func _process(delta: float):
 	update_hover_detection()
 
-## DEBUG: Warrior an Mausposition spawnen
 func spawn_warrior_at_mouse():
 	if warrior_scene == null:
 		push_error("Warrior Scene nicht im Inspector gesetzt!")
@@ -54,21 +50,19 @@ func spawn_warrior_at_mouse():
 	
 	print("Warrior gespawnt bei: ", new_warrior.global_position)
 
-## Prüfe ob Maus über einer Unit ist
 func update_hover_detection():
 	var mouse_pos = get_global_mouse_position()
 	var unit_under_mouse = get_unit_at_position(mouse_pos)
 	
 	if unit_under_mouse != hovering_unit:
-		if hovering_unit != null:
+		if hovering_unit != null and hovering_unit != selected_unit:
 			unhighlight_unit(hovering_unit)
 		
 		hovering_unit = unit_under_mouse
 		
-		if hovering_unit != null:
+		if hovering_unit != null and hovering_unit != selected_unit:
 			highlight_unit(hovering_unit)
 
-## Finde Unit unter Mausposition
 func get_unit_at_position(pos: Vector2) -> CharacterBody2D:
 	var space_state = get_world_2d().direct_space_state
 	var query = PhysicsPointQueryParameters2D.new()
@@ -83,15 +77,12 @@ func get_unit_at_position(pos: Vector2) -> CharacterBody2D:
 	
 	return null
 
-## Linksklick: Unit auswählen
 func handle_left_click(mouse_pos: Vector2):
-	## Erst auf Ressource klicken prüfen
 	var resource = world_gen.get_resource_at_position(mouse_pos)
 	if resource != null:
 		show_resource_info(resource)
 		return
 	
-	## Falls keine Ressource, auf Unit prüfen
 	var clicked_unit = get_unit_at_position(mouse_pos)
 	
 	if clicked_unit != null:
@@ -99,12 +90,10 @@ func handle_left_click(mouse_pos: Vector2):
 	else:
 		deselect_unit()
 
-## Rechtsklick: Befehl an ausgewählte Unit
 func handle_right_click(mouse_pos: Vector2):
 	if selected_unit != null:
 		selected_unit.set_target(mouse_pos)
 
-## Unit auswählen
 func select_unit(unit: CharacterBody2D):
 	if selected_unit != null and selected_unit != unit:
 		deselect_unit()
@@ -112,39 +101,36 @@ func select_unit(unit: CharacterBody2D):
 	selected_unit = unit
 	highlight_selected_unit(unit)
 
-## Unit abwählen
 func deselect_unit():
 	if selected_unit != null:
 		unhighlight_selected_unit(selected_unit)
 	selected_unit = null
+	hovering_unit = null
 
-## Unit hervorheben (Hover)
+## Hover: Nur Farbe ändern
 func highlight_unit(unit: CharacterBody2D):
 	var sprite_container = unit.get_node("unit")
 	if sprite_container:
 		sprite_container.modulate = Color.WHITE.lerp(selection_color, 0.3)
 
-## Unit Hover entfernen
+## Hover entfernen
 func unhighlight_unit(unit: CharacterBody2D):
 	var sprite_container = unit.get_node("unit")
 	if sprite_container:
 		sprite_container.modulate = Color.WHITE
 
-## Unit auswählen hervorheben (intensiver)
+## Selected: Nur Farbe, KEINE Scale-Änderung!
 func highlight_selected_unit(unit: CharacterBody2D):
 	var sprite_container = unit.get_node("unit")
 	if sprite_container:
 		sprite_container.modulate = selection_color
-		sprite_container.scale = Vector2.ONE * selection_scale
 
-## Unit Auswahl Hervorhebung entfernen
+## Selected entfernen: Nur Farbe zurücksetzen
 func unhighlight_selected_unit(unit: CharacterBody2D):
 	var sprite_container = unit.get_node("unit")
 	if sprite_container:
 		sprite_container.modulate = Color.WHITE
-		sprite_container.scale = Vector2.ONE
 
-## Ressourcen-Info anzeigen
 func show_resource_info(res_data: ResourceData):
 	print("=== RESSOURCE INFO ===")
 	print("Typ: ", res_data.resource_type.capitalize())

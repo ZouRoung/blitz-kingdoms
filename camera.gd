@@ -7,7 +7,7 @@ extends Camera2D
 
 @export_group("Zoom Settings")
 @export var zoom_speed : float = 0.1
-@export var max_zoom : float = 3.0
+@export var max_zoom : float = 4.0
 
 @export_group("Map Boundaries")
 @export var map_width : int = 100

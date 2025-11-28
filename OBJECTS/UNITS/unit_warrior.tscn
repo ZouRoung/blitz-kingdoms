@@ -162,7 +162,7 @@ tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
 tracks/0/path = NodePath("unit/base:position")
-tracks/0/interp = 1
+tracks/0/interp = 2
 tracks/0/loop_wrap = true
 tracks/0/keys = {
 "times": PackedFloat32Array(0, 1, 2),
@@ -174,7 +174,7 @@ tracks/1/type = "value"
 tracks/1/imported = false
 tracks/1/enabled = true
 tracks/1/path = NodePath("unit/base:rotation")
-tracks/1/interp = 1
+tracks/1/interp = 2
 tracks/1/loop_wrap = true
 tracks/1/keys = {
 "times": PackedFloat32Array(0, 1, 2),
@@ -186,7 +186,7 @@ tracks/2/type = "value"
 tracks/2/imported = false
 tracks/2/enabled = true
 tracks/2/path = NodePath("unit/base:scale")
-tracks/2/interp = 1
+tracks/2/interp = 2
 tracks/2/loop_wrap = true
 tracks/2/keys = {
 "times": PackedFloat32Array(0, 1, 2),
@@ -419,7 +419,7 @@ tracks/9/type = "value"
 tracks/9/imported = false
 tracks/9/enabled = true
 tracks/9/path = NodePath("unit/base/sword:position")
-tracks/9/interp = 1
+tracks/9/interp = 2
 tracks/9/loop_wrap = true
 tracks/9/keys = {
 "times": PackedFloat32Array(0, 0.20000002, 0.40000004, 0.6, 0.8),
@@ -431,7 +431,7 @@ tracks/10/type = "value"
 tracks/10/imported = false
 tracks/10/enabled = true
 tracks/10/path = NodePath("unit/base/sword:rotation")
-tracks/10/interp = 1
+tracks/10/interp = 2
 tracks/10/loop_wrap = true
 tracks/10/keys = {
 "times": PackedFloat32Array(0, 0.20000002, 0.40000004, 0.6, 0.8),
@@ -443,7 +443,7 @@ tracks/11/type = "value"
 tracks/11/imported = false
 tracks/11/enabled = true
 tracks/11/path = NodePath("unit/base/sword:scale")
-tracks/11/interp = 1
+tracks/11/interp = 2
 tracks/11/loop_wrap = true
 tracks/11/keys = {
 "times": PackedFloat32Array(0, 0.20000002, 0.40000004, 0.6, 0.8),
@@ -460,13 +460,16 @@ _data = {
 }
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_j1aps"]
-size = Vector2(16, 8.5)
+size = Vector2(16, 36.5)
 
 [node name="Unit_warrior" type="CharacterBody2D"]
-scale = Vector2(0.5, 0.5)
+y_sort_enabled = true
+scale = Vector2(0.25, 0.25)
+collision_mask = 0
 script = ExtResource("1_xk7b7")
 
 [node name="unit" type="Node2D" parent="."]
+position = Vector2(0, -20)
 scale = Vector2(2, 2)
 
 [node name="shadow" type="Sprite2D" parent="unit"]
@@ -492,5 +495,5 @@ libraries = {
 }
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
-position = Vector2(0, 20.25)
+position = Vector2(0, -12)
 shape = SubResource("RectangleShape2D_j1aps")

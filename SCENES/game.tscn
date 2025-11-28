@@ -10,3 +10,4 @@
 [node name="gameHandler" parent="." instance=ExtResource("2_w4tjv")]
 
 [node name="Units" type="Node2D" parent="."]
+y_sort_enabled = true
