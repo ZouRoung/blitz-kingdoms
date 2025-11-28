@@ -4,15 +4,21 @@ extends Node2D
 @export var selection_color : Color = Color.YELLOW
 @export var selection_scale : float = 1.1
 
+@export_group("Debug")
+@export var warrior_scene : PackedScene
+@export var spawn_container : Node2D
+
 var selected_unit : CharacterBody2D = null
 var hovering_unit : CharacterBody2D = null
 
-## Für visuelle Rückmeldung beim Hovern
-var original_modulate : Color
+@onready var world_gen : Node2D = get_parent().get_node("worldGen")
 
 func _ready():
-	## Input-Events abfangen
-	pass
+	## Falls spawn_container nicht gesetzt, nutze parent's Units Node
+	if spawn_container == null:
+		var parent = get_parent()
+		if parent.has_node("Units"):
+			spawn_container = parent.get_node("Units")
 
 func _input(event: InputEvent):
 	if event is InputEventMouseButton:
@@ -23,16 +29,36 @@ func _input(event: InputEvent):
 				handle_left_click(mouse_pos)
 			elif event.button_index == MOUSE_BUTTON_RIGHT:
 				handle_right_click(mouse_pos)
+	
+	## DEBUG: F1 - Warrior an Mausposition spawnen
+	if event is InputEventKey and event.pressed:
+		if event.keycode == KEY_F1:
+			spawn_warrior_at_mouse()
 
 func _process(delta: float):
 	update_hover_detection()
+
+## DEBUG: Warrior an Mausposition spawnen
+func spawn_warrior_at_mouse():
+	if warrior_scene == null:
+		push_error("Warrior Scene nicht im Inspector gesetzt!")
+		return
+	
+	if spawn_container == null:
+		push_error("Spawn Container nicht gefunden!")
+		return
+	
+	var new_warrior = warrior_scene.instantiate()
+	new_warrior.global_position = get_global_mouse_position()
+	spawn_container.add_child(new_warrior)
+	
+	print("Warrior gespawnt bei: ", new_warrior.global_position)
 
 ## Prüfe ob Maus über einer Unit ist
 func update_hover_detection():
 	var mouse_pos = get_global_mouse_position()
 	var unit_under_mouse = get_unit_at_position(mouse_pos)
 	
-	## Hover-Status ändern
 	if unit_under_mouse != hovering_unit:
 		if hovering_unit != null:
 			unhighlight_unit(hovering_unit)
@@ -52,7 +78,6 @@ func get_unit_at_position(pos: Vector2) -> CharacterBody2D:
 	
 	if result.size() > 0:
 		var collider = result[0].collider
-		## Prüfe ob es eine Unit (CharacterBody2D) ist
 		if collider is CharacterBody2D and collider.has_method("set_target"):
 			return collider
 	
@@ -60,6 +85,13 @@ func get_unit_at_position(pos: Vector2) -> CharacterBody2D:
 
 ## Linksklick: Unit auswählen
 func handle_left_click(mouse_pos: Vector2):
+	## Erst auf Ressource klicken prüfen
+	var resource = world_gen.get_resource_at_position(mouse_pos)
+	if resource != null:
+		show_resource_info(resource)
+		return
+	
+	## Falls keine Ressource, auf Unit prüfen
 	var clicked_unit = get_unit_at_position(mouse_pos)
 	
 	if clicked_unit != null:
@@ -74,7 +106,6 @@ func handle_right_click(mouse_pos: Vector2):
 
 ## Unit auswählen
 func select_unit(unit: CharacterBody2D):
-	## Alte Auswahl abmelden
 	if selected_unit != null and selected_unit != unit:
 		deselect_unit()
 	
@@ -112,3 +143,11 @@ func unhighlight_selected_unit(unit: CharacterBody2D):
 	if sprite_container:
 		sprite_container.modulate = Color.WHITE
 		sprite_container.scale = Vector2.ONE
+
+## Ressourcen-Info anzeigen
+func show_resource_info(res_data: ResourceData):
+	print("=== RESSOURCE INFO ===")
+	print("Typ: ", res_data.resource_type.capitalize())
+	print("Supply: ", res_data.current_supply, " / ", res_data.max_supply)
+	print("Position: ", res_data.world_position)
+	print("======================")

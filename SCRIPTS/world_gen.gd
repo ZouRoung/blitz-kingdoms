@@ -14,44 +14,33 @@ extends Node2D
 @export var grass_noise_octaves : int = 4
 
 @export_group("Water Tiles")
-## Atlas-Koordinaten für Wasser (0,11 bis 26,11)
-@export var water_center : Vector2i = Vector2i(0,11)             # 0
-@export var water_bottom_left : Vector2i = Vector2i(1,11)        # 1
-@export var water_bottom_right : Vector2i = Vector2i(2,11)       # 2
-@export var water_top_left : Vector2i = Vector2i(3,11)           # 3
-@export var water_top_right : Vector2i = Vector2i(4,11)          # 4
-@export var water_top : Vector2i = Vector2i(5,11)                # 5
-@export var water_bottom : Vector2i = Vector2i(6,11)             # 6
-@export var water_left : Vector2i = Vector2i(7,11)               # 7
-@export var water_right : Vector2i = Vector2i(8,11)              # 8
-@export var water_inner_top_left : Vector2i = Vector2i(9,11)     # 9
-@export var water_inner_top_right : Vector2i = Vector2i(10,11)   # 10
-@export var water_inner_bottom_left : Vector2i = Vector2i(11,11) # 11
-@export var water_inner_bottom_right : Vector2i = Vector2i(12,11)# 12
-
-## Diagonale Inner-Tiles (Wenn diagonal gegenüberliegende Ecken Land sind)
-@export var water_inner_diagonal_tl_br : Vector2i = Vector2i(13,11) # 13 (Pixel Oben-Links & Unten-Rechts)
-
-## Tiles für horizontale T-Verbindungen (Oben/Unten mit Ecke)
-@export var water_top_with_bottom_left : Vector2i = Vector2i(14,11)  # 14
-@export var water_top_with_bottom_right : Vector2i = Vector2i(15,11) # 15
-@export var water_bottom_with_top_left : Vector2i = Vector2i(16,11)  # 16
-@export var water_bottom_with_top_right : Vector2i = Vector2i(17,11) # 17
-
-## Tiles für vertikale T-Verbindungen (Links/Rechts mit Ecke)
-@export var water_left_with_top_right : Vector2i = Vector2i(18,11)   # 18
-@export var water_left_with_bottom_right : Vector2i = Vector2i(19,11)# 19
-@export var water_right_with_top_left : Vector2i = Vector2i(20,11)   # 20
-@export var water_right_with_bottom_left : Vector2i = Vector2i(21,11)# 21
-
-## Tiles für Ecken mit diagonalem Pixel
-@export var water_bottom_left_with_top_right : Vector2i = Vector2i(22,11) # 22
-@export var water_bottom_right_with_top_left : Vector2i = Vector2i(23,11) # 23
-@export var water_top_left_with_bottom_right : Vector2i = Vector2i(24,11) # 24
-@export var water_top_right_with_bottom_left : Vector2i = Vector2i(25,11) # 25
-
-## NEU: Das zweite diagonale Tile
-@export var water_inner_diagonal_tr_bl : Vector2i = Vector2i(26,11) # 26 (Pixel Oben-Rechts & Unten-Links)
+@export var water_center : Vector2i = Vector2i(0,11)
+@export var water_bottom_left : Vector2i = Vector2i(1,11)
+@export var water_bottom_right : Vector2i = Vector2i(2,11)
+@export var water_top_left : Vector2i = Vector2i(3,11)
+@export var water_top_right : Vector2i = Vector2i(4,11)
+@export var water_top : Vector2i = Vector2i(5,11)
+@export var water_bottom : Vector2i = Vector2i(6,11)
+@export var water_left : Vector2i = Vector2i(7,11)
+@export var water_right : Vector2i = Vector2i(8,11)
+@export var water_inner_top_left : Vector2i = Vector2i(9,11)
+@export var water_inner_top_right : Vector2i = Vector2i(10,11)
+@export var water_inner_bottom_left : Vector2i = Vector2i(11,11)
+@export var water_inner_bottom_right : Vector2i = Vector2i(12,11)
+@export var water_inner_diagonal_tl_br : Vector2i = Vector2i(13,11)
+@export var water_top_with_bottom_left : Vector2i = Vector2i(14,11)
+@export var water_top_with_bottom_right : Vector2i = Vector2i(15,11)
+@export var water_bottom_with_top_left : Vector2i = Vector2i(16,11)
+@export var water_bottom_with_top_right : Vector2i = Vector2i(17,11)
+@export var water_left_with_top_right : Vector2i = Vector2i(18,11)
+@export var water_left_with_bottom_right : Vector2i = Vector2i(19,11)
+@export var water_right_with_top_left : Vector2i = Vector2i(20,11)
+@export var water_right_with_bottom_left : Vector2i = Vector2i(21,11)
+@export var water_bottom_left_with_top_right : Vector2i = Vector2i(22,11)
+@export var water_bottom_right_with_top_left : Vector2i = Vector2i(23,11)
+@export var water_top_left_with_bottom_right : Vector2i = Vector2i(24,11)
+@export var water_top_right_with_bottom_left : Vector2i = Vector2i(25,11)
+@export var water_inner_diagonal_tr_bl : Vector2i = Vector2i(26,11)
 
 @export_group("Water Settings")
 @export var water_noise_frequency : float = 0.04
@@ -97,13 +86,12 @@ var resource_noise := FastNoiseLite.new()
 var forest_noise := FastNoiseLite.new()
 
 var water_cells : Dictionary = {}
+var resource_data_map : Dictionary = {}
 
 @onready var ground_tilemap : TileMapLayer = $groundTileMap
 @onready var water_tilemap : TileMapLayer = $WaterTileMap
 @onready var ground_details_tilemap : TileMapLayer = $groundDetailsTileMap
 @onready var resource_tilemap : TileMapLayer = $resourceTileMap
-
-var resource_data_map : Dictionary = {}
 
 func _ready():
 	setup_noise()
@@ -144,9 +132,9 @@ func generate_world():
 	ground_details_tilemap.clear()
 	resource_tilemap.clear()
 	water_cells.clear()
+	resource_data_map.clear()
 	var placed_resources = {}
 	
-	## 1. Boden
 	for x in map_width:
 		for y in map_height:
 			var cell = Vector2i(x, y)
@@ -156,7 +144,6 @@ func generate_world():
 			grass_index = clamp(grass_index, 0, grass_tiles.size() - 1)
 			ground_tilemap.set_cell(cell, 0, grass_tiles[grass_index])
 	
-	## 2. Wasser Basis
 	for x in map_width:
 		for y in map_height:
 			var cell = Vector2i(x, y)
@@ -164,12 +151,10 @@ func generate_world():
 			if water_val > water_threshold:
 				water_cells[cell] = true
 	
-	## 3. Wasser Bereinigung & Placement
 	remove_small_water_clusters()
 	clean_water_shapes()
 	apply_water_autotiling()
 	
-	## 4. Details & Ressourcen
 	for x in map_width:
 		for y in map_height:
 			var cell = Vector2i(x, y)
@@ -254,13 +239,11 @@ func apply_water_autotiling():
 		var x = cell.x
 		var y = cell.y
 		
-		# Kardinale Nachbarn
 		var n_top = water_cells.has(Vector2i(x, y - 1))
 		var n_bottom = water_cells.has(Vector2i(x, y + 1))
 		var n_left = water_cells.has(Vector2i(x - 1, y))
 		var n_right = water_cells.has(Vector2i(x + 1, y))
 		
-		# Diagonale Nachbarn (für Inner Corners / Einbuchtungen)
 		var n_top_left = water_cells.has(Vector2i(x - 1, y - 1))
 		var n_top_right = water_cells.has(Vector2i(x + 1, y - 1))
 		var n_bottom_left = water_cells.has(Vector2i(x - 1, y + 1))
@@ -275,73 +258,62 @@ func apply_water_autotiling():
 		var water_tile = water_center
 		
 		match bitmask:
-			15: # 4 Nachbarn (Voll) -> Prüfe auf Land in den Ecken
-				# 1. Priorität: Diagonale Crosses (S-Kurven)
-				# 13: Land Oben-Links & Unten-Rechts
+			15:
 				if not n_top_left and not n_bottom_right:
 					water_tile = water_inner_diagonal_tl_br
-				# 26: Land Oben-Rechts & Unten-Links (NEU)
 				elif not n_top_right and not n_bottom_left:
 					water_tile = water_inner_diagonal_tr_bl
-					
-				# 2. Priorität: Einzelne Ecken
-				elif not n_top_left: water_tile = water_inner_top_left # 9
-				elif not n_top_right: water_tile = water_inner_top_right # 10
-				elif not n_bottom_left: water_tile = water_inner_bottom_left # 11
-				elif not n_bottom_right: water_tile = water_inner_bottom_right # 12
+				elif not n_top_left: water_tile = water_inner_top_left
+				elif not n_top_right: water_tile = water_inner_top_right
+				elif not n_bottom_left: water_tile = water_inner_bottom_left
+				elif not n_bottom_right: water_tile = water_inner_bottom_right
+				else: water_tile = water_center
+			
+			14:
+				if not n_bottom_left: water_tile = water_top_with_bottom_left
+				elif not n_bottom_right: water_tile = water_top_with_bottom_right
+				else: water_tile = water_top
 				
-				# 3. Sonst: Volles Wasser
-				else: water_tile = water_center # 0
+			13:
+				if not n_top_left: water_tile = water_bottom_with_top_left
+				elif not n_top_right: water_tile = water_bottom_with_top_right
+				else: water_tile = water_bottom
 			
-			## T-Verbindungen (Diagonalen prüfen)
-			
-			14: # Top Missing (Visuell: OBERKANTE)
-				if not n_bottom_left: water_tile = water_top_with_bottom_left    # 14
-				elif not n_bottom_right: water_tile = water_top_with_bottom_right # 15
-				else: water_tile = water_top # 5
+			11:
+				if not n_top_right: water_tile = water_left_with_top_right
+				elif not n_bottom_right: water_tile = water_left_with_bottom_right
+				else: water_tile = water_left
 				
-			13: # Bottom Missing (Visuell: UNTERKANTE)
-				if not n_top_left: water_tile = water_bottom_with_top_left      # 16
-				elif not n_top_right: water_tile = water_bottom_with_top_right  # 17
-				else: water_tile = water_bottom # 6
-			
-			11: # Right Missing (Visuell: LINKE KANTE)
-				if not n_top_right: water_tile = water_left_with_top_right      # 18
-				elif not n_bottom_right: water_tile = water_left_with_bottom_right # 19
-				else: water_tile = water_left # 7
+			7:
+				if not n_top_left: water_tile = water_right_with_top_left
+				elif not n_bottom_left: water_tile = water_right_with_bottom_left
+				else: water_tile = water_right
 				
-			7: # Left Missing (Visuell: RECHTE KANTE)
-				if not n_top_left: water_tile = water_right_with_top_left       # 20
-				elif not n_bottom_left: water_tile = water_right_with_bottom_left # 21
-				else: water_tile = water_right # 8
-				
-			## Ecken (Diagonalen prüfen für Pixel-Variante)
+			5: 
+				if not n_top_left: water_tile = water_bottom_right_with_top_left
+				else: water_tile = water_bottom_right
+
+			9:
+				if not n_top_right: water_tile = water_bottom_left_with_top_right
+				else: water_tile = water_bottom_left
+
+			6:
+				if not n_bottom_left: water_tile = water_top_right_with_bottom_left
+				else: water_tile = water_top_right
+
+			10:
+				if not n_bottom_right: water_tile = water_top_left_with_bottom_right
+				else: water_tile = water_top_left
+
+			3: water_tile = water_center
+			12: water_tile = water_center
 			
-			5: # Visuell: ECKE UNTEN-RECHTS (Wasser oben & links)
-				if not n_top_left: water_tile = water_bottom_right_with_top_left # 23
-				else: water_tile = water_bottom_right # 2 
-
-			9: # Visuell: ECKE UNTEN-LINKS (Wasser oben & rechts)
-				if not n_top_right: water_tile = water_bottom_left_with_top_right # 22
-				else: water_tile = water_bottom_left # 1 
-
-			6: # Visuell: ECKE OBEN-RECHTS (Wasser unten & links)
-				if not n_bottom_left: water_tile = water_top_right_with_bottom_left # 25
-				else: water_tile = water_top_right # 4 
-
-			10: # Visuell: ECKE OBEN-LINKS (Wasser unten & rechts)
-				if not n_bottom_right: water_tile = water_top_left_with_bottom_right # 24
-				else: water_tile = water_top_left # 3 
-
-			3: water_tile = water_center # Kanal Vertikal 
-			12: water_tile = water_center # Kanal Horizontal
+			1: water_tile = water_bottom
+			2: water_tile = water_top
+			4: water_tile = water_right
+			8: water_tile = water_left
 			
-			1: water_tile = water_bottom # Endstück Oben
-			2: water_tile = water_top # Endstück Unten
-			4: water_tile = water_right # Endstück Links
-			8: water_tile = water_left # Endstück Rechts
-			
-			0: water_tile = water_center # Einzeln
+			0: water_tile = water_center
 			
 		water_tilemap.set_cell(cell, 0, water_tile)
 
@@ -357,19 +329,14 @@ func place_random_resource(cell: Vector2i, placed_resources: Dictionary):
 	else: place_single_resource(cell, tree_tiles, placed_resources)
 
 func place_single_resource(cell: Vector2i, tile_list: Array[Vector2i], placed_resources: Dictionary):
-	## ERST: Supply-Wert generieren
 	var resource_type = get_resource_type_from_tiles(tile_list)
 	var supply = get_resource_supply(resource_type)
-	
-	## DANN: Passenden Sprite-Index basierend auf Supply wählen
 	var sprite_index = get_sprite_index_for_supply(supply)
 	
-	## Sprite setzen (tile_list[sprite_index] gibt das richtige Sprite zurück)
 	var atlas_coord = tile_list[sprite_index]
 	resource_tilemap.set_cell(cell, 0, atlas_coord)
 	placed_resources[cell] = true
 	
-	## ResourceData erstellen mit dem generierten Supply
 	var res_data = ResourceData.new()
 	res_data.world_position = cell
 	res_data.resource_type = resource_type
@@ -379,17 +346,12 @@ func place_single_resource(cell: Vector2i, tile_list: Array[Vector2i], placed_re
 	resource_data_map[cell] = res_data
 
 func place_forest_tree(cell: Vector2i, forest_strength: float, placed_resources: Dictionary):
-	## Supply generieren
 	var supply = get_resource_supply("tree")
-	
-	## Sprite-Index basierend auf Supply wählen
 	var tree_index = get_sprite_index_for_supply(supply)
 	
-	## Sprite setzen
 	resource_tilemap.set_cell(cell, 0, tree_tiles[tree_index])
 	placed_resources[cell] = true
 	
-	## ResourceData mit generiertem Supply erstellen
 	var res_data = ResourceData.new()
 	res_data.world_position = cell
 	res_data.resource_type = "tree"
@@ -397,7 +359,6 @@ func place_forest_tree(cell: Vector2i, forest_strength: float, placed_resources:
 	res_data.current_supply = supply
 	
 	resource_data_map[cell] = res_data
-
 
 func place_berry_cluster(cell: Vector2i, placed_resources: Dictionary):
 	for dx in range(-berry_cluster_size/2, berry_cluster_size/2 + 1):
@@ -409,35 +370,19 @@ func place_berry_cluster(cell: Vector2i, placed_resources: Dictionary):
 						place_single_resource(c, berry_tiles, placed_resources)
 
 func get_resource_supply(resource_type: String) -> int:
-	## Mögliche Supply-Werte für alle Ressourcen
 	var possible_values = [3000, 5000, 7500, 10000, 12500, 15000]
-	
-	## Wähle einen zufälligen Wert aus dem Array
 	var random_index = randi() % possible_values.size()
 	return possible_values[random_index]
 
 func get_sprite_index_for_supply(supply: int) -> int:
-	## Ab 10.000 Supply: 3 Bäume/Steine (Index 2)
 	if supply >= 10000:
 		return 2
-	## Ab 5.000 Supply: 2 Bäume/Steine (Index 1)
 	elif supply >= 5000:
 		return 1
-	## Unter 5.000 Supply: 1 Baum/Stein (Index 0)
 	else:
 		return 0
 
-
-func get_resource_type_from_atlas(atlas_coord: Vector2i) -> String:
-	if atlas_coord in tree_tiles: return "tree"
-	if atlas_coord in stone_tiles: return "stone"
-	if atlas_coord in iron_tiles: return "iron"
-	if atlas_coord in gold_tiles: return "gold"
-	if atlas_coord in berry_tiles: return "berry"
-	return "unknown"
-
 func get_resource_type_from_tiles(tile_list: Array[Vector2i]) -> String:
-	## Prüfe, welche Liste übergeben wurde
 	if tile_list == tree_tiles: return "tree"
 	if tile_list == stone_tiles: return "stone"
 	if tile_list == iron_tiles: return "iron"
@@ -445,21 +390,9 @@ func get_resource_type_from_tiles(tile_list: Array[Vector2i]) -> String:
 	if tile_list == berry_tiles: return "berry"
 	return "unknown"
 
-
-func _input(event: InputEvent):
-	if event is InputEventMouseButton:
-		if event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-			## Mausposition zu Tile-Koordinaten konvertieren
-			var mouse_pos = get_global_mouse_position()
-			var tile_pos = resource_tilemap.local_to_map(resource_tilemap.to_local(mouse_pos))
-			
-			## Prüfen, ob auf dieser Position eine Ressource existiert
-			if resource_data_map.has(tile_pos):
-				show_resource_info(resource_data_map[tile_pos])
-
-func show_resource_info(res_data: ResourceData):
-	print("=== RESSOURCE INFO ===")
-	print("Typ: ", res_data.resource_type.capitalize())
-	print("Supply: ", res_data.current_supply, " / ", res_data.max_supply)
-	print("Position: ", res_data.world_position)
-	print("======================")
+## Öffentliche Schnittstelle für GameHandler
+func get_resource_at_position(world_pos: Vector2) -> ResourceData:
+	var tile_pos = resource_tilemap.local_to_map(resource_tilemap.to_local(world_pos))
+	if resource_data_map.has(tile_pos):
+		return resource_data_map[tile_pos]
+	return null
