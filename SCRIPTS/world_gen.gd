@@ -79,6 +79,17 @@ extends Node2D
 @export var berry_cluster_size : int = 3
 @export var berry_cluster_chance : float = 0.7
 
+@export_group("Spawn Settings")
+## Mindestabstand zwischen Spawn-Punkten (in Tiles)
+@export var min_spawn_distance : int = 20
+
+## Mindestabstand zum Kartenrand (in Tiles)
+@export var min_border_distance : int = 10
+
+## Maximale Versuche, einen gültigen Spawn-Punkt zu finden
+@export var max_spawn_attempts : int = 100
+
+
 var grass_noise := FastNoiseLite.new()
 var water_noise := FastNoiseLite.new()
 var detail_noise := FastNoiseLite.new()
@@ -92,6 +103,9 @@ var resource_data_map : Dictionary = {}
 @onready var water_tilemap : TileMapLayer = $WaterTileMap
 @onready var ground_details_tilemap : TileMapLayer = $groundDetailsTileMap
 @onready var resource_tilemap : TileMapLayer = $resourceTileMap
+@onready var spawn_marker_tilemap : TileMapLayer = $spawnMarkerTileMap
+
+var spawn_points : Array[Vector2i] = []
 
 func _ready():
 	setup_noise()
@@ -182,6 +196,9 @@ func generate_world():
 			
 			if randf() < resource_spawn_chance:
 				place_random_resource(cell, placed_resources)
+				
+	## Spawn-Punkte generieren (Beispiel: 4 Spieler)
+	generate_spawn_points(16)
 
 func remove_small_water_clusters():
 	var visited = {}
@@ -390,9 +407,88 @@ func get_resource_type_from_tiles(tile_list: Array[Vector2i]) -> String:
 	if tile_list == berry_tiles: return "berry"
 	return "unknown"
 
+
 ## Öffentliche Schnittstelle für GameHandler
 func get_resource_at_position(world_pos: Vector2) -> ResourceData:
 	var tile_pos = resource_tilemap.local_to_map(resource_tilemap.to_local(world_pos))
 	if resource_data_map.has(tile_pos):
 		return resource_data_map[tile_pos]
 	return null
+
+
+func _input(event: InputEvent):
+	if event is InputEventMouseButton:
+		if event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+			## Mausposition zu Tile-Koordinaten konvertieren
+			var mouse_pos = get_global_mouse_position()
+			var tile_pos = resource_tilemap.local_to_map(resource_tilemap.to_local(mouse_pos))
+			
+			## Prüfen, ob auf dieser Position eine Ressource existiert
+			if resource_data_map.has(tile_pos):
+				show_resource_info(resource_data_map[tile_pos])
+
+func show_resource_info(res_data: ResourceData):
+	print("=== RESSOURCE INFO ===")
+	print("Typ: ", res_data.resource_type.capitalize())
+	print("Supply: ", res_data.current_supply, " / ", res_data.max_supply)
+	print("Position: ", res_data.world_position)
+	print("======================")
+	
+func generate_spawn_points(player_count: int):
+	spawn_points.clear()
+	
+	print("=== Generiere ", player_count, " Spawn-Punkte ===")
+	
+	for i in range(player_count):
+		var spawn_pos = find_valid_spawn_position()
+		
+		if spawn_pos != Vector2i(-1, -1):
+			spawn_points.append(spawn_pos)
+			print("Spawn-Punkt ", i + 1, ": ", spawn_pos)
+		else:
+			print("WARNUNG: Konnte keinen gültigen Spawn-Punkt ", i + 1, " finden!")
+	
+	print("=== ", spawn_points.size(), " Spawn-Punkte generiert ===")
+	## Visualisiere Spawn-Punkte
+	visualize_spawn_points()
+
+func find_valid_spawn_position() -> Vector2i:
+	## Versuche max_spawn_attempts mal, einen gültigen Punkt zu finden
+	for attempt in range(max_spawn_attempts):
+		## Zufällige Position innerhalb der Karte (mit Rand-Abstand)
+		var x = randi_range(min_border_distance, map_width - min_border_distance - 1)
+		var y = randi_range(min_border_distance, map_height - min_border_distance - 1)
+		var pos = Vector2i(x, y)
+		
+		## Prüfe, ob Position gültig ist
+		if is_valid_spawn_position(pos):
+			return pos
+	
+	## Kein gültiger Punkt gefunden
+	return Vector2i(-1, -1)
+
+func is_valid_spawn_position(pos: Vector2i) -> bool:
+	## 1. Prüfe: Nicht auf Wasser spawnen
+	if water_cells.has(pos):
+		return false
+	
+	## 2. Prüfe: Mindestabstand zu anderen Spawn-Punkten
+	for existing_spawn in spawn_points:
+		var distance = pos.distance_to(existing_spawn)
+		if distance < min_spawn_distance:
+			return false
+	
+	## Alle Checks bestanden
+	return true
+
+func visualize_spawn_points():
+	if not spawn_marker_tilemap:
+		return
+	
+	spawn_marker_tilemap.clear()
+	
+	## Nutze Gold als auffälligen Marker
+	var marker_tile = Vector2i(0, 11)
+	
+	for spawn_pos in spawn_points:
+		spawn_marker_tilemap.set_cell(spawn_pos, 0, marker_tile)
