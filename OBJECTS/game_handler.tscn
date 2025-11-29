@@ -1,4 +1,4 @@
-[gd_scene load_steps=3 format=3 uid="uid://pxmurnqt1mhy"]
+[gd_scene load_steps=3 format=3 uid="uid://yopmjcm1w1pd"]
 
 [ext_resource type="Script" uid="uid://dypyrhrdleaej" path="res://SCRIPTS/game_handler.gd" id="1_u8uyr"]
 [ext_resource type="PackedScene" uid="uid://cexqy5rvxss56" path="res://OBJECTS/UNITS/unit_warrior.tscn" id="2_to7rp"]
