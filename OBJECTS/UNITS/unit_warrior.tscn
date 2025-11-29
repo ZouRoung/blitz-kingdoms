@@ -1,6 +1,6 @@
 [gd_scene load_steps=12 format=3 uid="uid://cexqy5rvxss56"]
 
-[ext_resource type="Script" uid="uid://cn7kdud0q882" path="res://OBJECTS/UNITS/unit_script.gd" id="1_xk7b7"]
+[ext_resource type="Script" uid="uid://cn7kdud0q882" path="res://SCRIPTS/unit_script.gd" id="1_xk7b7"]
 [ext_resource type="Texture2D" uid="uid://c6u8k7ti0hq36" path="res://ASSETS/SPRITES/UNITS/WARRIOR/warrior_shadow.png" id="2_e3ab8"]
 [ext_resource type="Texture2D" uid="uid://yovag4o25sev" path="res://ASSETS/SPRITES/UNITS/WARRIOR/warrior_sword.png" id="3_stoig"]
 [ext_resource type="Texture2D" uid="uid://dehn6x4pu5e8h" path="res://ASSETS/SPRITES/UNITS/WARRIOR/warrior_body.png" id="4_pj2tc"]

@@ -1,0 +1,146 @@
+[gd_scene load_steps=8 format=3 uid="uid://b5khnrbjmxvsn"]
+
+[ext_resource type="Script" uid="uid://crqof46ojb2tk" path="res://SCRIPTS/ui.gd" id="1_4cuim"]
+[ext_resource type="Texture2D" uid="uid://cbqx34dmu8v4l" path="res://ASSETS/SPRITES/UI/topbar/topbar.png" id="2_wug7n"]
+[ext_resource type="Texture2D" uid="uid://8ftejx61stwf" path="res://ASSETS/SPRITES/UI/topbar/topbarTimer.png" id="3_b2kkc"]
+
+[sub_resource type="Animation" id="Animation_4cuim"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("base/selectMenu:visible")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [false]
+}
+
+[sub_resource type="Animation" id="Animation_b2kkc"]
+resource_name = "deselected"
+length = 0.5
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("base/selectMenu:visible")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [false]
+}
+
+[sub_resource type="Animation" id="Animation_wug7n"]
+resource_name = "selected"
+length = 0.5
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("base/selectMenu:visible")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [true]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_b2kkc"]
+_data = {
+&"RESET": SubResource("Animation_4cuim"),
+&"deselected": SubResource("Animation_b2kkc"),
+&"selected": SubResource("Animation_wug7n")
+}
+
+[node name="ui" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_4cuim")
+
+[node name="base" type="CanvasLayer" parent="."]
+
+[node name="topbar" type="Node2D" parent="base"]
+
+[node name="resourcesBar" type="Sprite2D" parent="base/topbar"]
+position = Vector2(844, 21.000002)
+scale = Vector2(2.5, 2.5)
+texture = ExtResource("2_wug7n")
+
+[node name="timer" type="Sprite2D" parent="base/topbar"]
+position = Vector2(475, 21)
+scale = Vector2(2.5, 2.5)
+texture = ExtResource("3_b2kkc")
+
+[node name="woodCounter" type="Label" parent="base/topbar"]
+offset_left = 585.0
+offset_top = 4.0
+offset_right = 653.0
+offset_bottom = 30.0
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 2
+theme_override_font_sizes/font_size = 18
+text = "0"
+clip_text = true
+
+[node name="stoneCounter" type="Label" parent="base/topbar"]
+offset_left = 705.0
+offset_top = 4.0
+offset_right = 773.0
+offset_bottom = 30.0
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 2
+theme_override_font_sizes/font_size = 18
+text = "0"
+clip_text = true
+
+[node name="ironCounter" type="Label" parent="base/topbar"]
+offset_left = 825.0
+offset_top = 4.0
+offset_right = 893.0
+offset_bottom = 30.0
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 2
+theme_override_font_sizes/font_size = 18
+text = "0"
+clip_text = true
+
+[node name="goldCounter" type="Label" parent="base/topbar"]
+offset_left = 945.0
+offset_top = 4.0
+offset_right = 1013.0
+offset_bottom = 30.0
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 2
+theme_override_font_sizes/font_size = 18
+text = "0"
+clip_text = true
+
+[node name="foodCounter" type="Label" parent="base/topbar"]
+offset_left = 1065.0
+offset_top = 4.0
+offset_right = 1133.0
+offset_bottom = 30.0
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 2
+theme_override_font_sizes/font_size = 18
+text = "0"
+clip_text = true
+
+[node name="selectMenu" type="Node2D" parent="base"]
+visible = false
+modulate = Color(1, 1, 1, 0)
+
+[node name="ani" type="AnimationPlayer" parent="."]
+libraries = {
+&"": SubResource("AnimationLibrary_b2kkc")
+}
