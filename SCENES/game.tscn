@@ -1,7 +1,7 @@
 [gd_scene load_steps=3 format=3 uid="uid://drugflygomoy3"]
 
 [ext_resource type="PackedScene" uid="uid://c0fi1s61yiopx" path="res://OBJECTS/world_gen.tscn" id="1_2sn7y"]
-[ext_resource type="PackedScene" uid="uid://pxmurnqt1mhy" path="res://OBJECTS/game_handler.tscn" id="2_w4tjv"]
+[ext_resource type="PackedScene" uid="uid://yopmjcm1w1pd" path="res://OBJECTS/game_handler.tscn" id="2_w4tjv"]
 
 [node name="game" type="Node2D"]
 
