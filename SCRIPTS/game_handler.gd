@@ -1,3 +1,4 @@
+## res://SCRIPTS/GAME/game_handler.gd
 extends Node2D
 
 @export_group("Input Settings")
@@ -9,7 +10,7 @@ extends Node2D
 @export var warrior_scene : PackedScene
 @export var spawn_container : Node2D
 
-## --- UI REFERENCES ---
+## --- UI REFERENCES (TOP BAR) ---
 @onready var topbar = get_parent().get_node("ui/base/topbar")
 @onready var timer_label = topbar.get_node("timer")
 @onready var wood_counter = topbar.get_node("woodCounter")
@@ -18,21 +19,42 @@ extends Node2D
 @onready var gold_counter = topbar.get_node("goldCounter")
 @onready var food_counter = topbar.get_node("foodCounter")
 
+## --- UI REFERENCES (BOTTOM MENUS) ---
 @onready var bottom_menu_root = get_parent().get_node("ui/base/bottomMenu")
 @onready var menu_container = bottom_menu_root.get_node("menu")
 @onready var building_menu_container = bottom_menu_root.get_node("buildingMenu")
 @onready var farm_menu_container = building_menu_container.get_node("farmMenu")
 @onready var war_menu_container = building_menu_container.get_node("warMenu")
 
-@onready var world_gen : Node2D = get_parent().get_node("worldGen")
-@onready var building_tilemap : TileMapLayer = world_gen.get_node("buildingTileMap")
+## --- UI REFERENCES (SELECTED UNIT MENU) ---
+@onready var selected_unit_menu = bottom_menu_root.get_node("selectedUnitMenu")
+@onready var unit_portrait = selected_unit_menu.get_node("unitPortrait")
+@onready var unit_name_label = selected_unit_menu.get_node("unitName")
+@onready var health_text = selected_unit_menu.get_node("healthText")
+@onready var health_bar = selected_unit_menu.get_node("healthbar")
+@onready var exp_text = selected_unit_menu.get_node("expText")
+@onready var exp_bar = selected_unit_menu.get_node("expbar")
+@onready var cancel_unit_menu_btn = selected_unit_menu.get_node("cancelSelectedUnitMenu")
+
+## --- UI REFERENCES (SELECTED RESOURCE MENU) ---
+@onready var selected_resource_menu = bottom_menu_root.get_node("selectedResourceMenu")
+@onready var res_portrait = selected_resource_menu.get_node("unitPortrait") ## Node Name ist lt. Screenshot "unitPortrait"
+@onready var res_name_label = selected_resource_menu.get_node("resourceName")
+@onready var res_health_text = selected_resource_menu.get_node("healthText") ## Vermutlich "Supply" Label
+@onready var res_health_value_label = selected_resource_menu.get_node("healthValue") ## Das neue Label unter der Bar
+@onready var res_health_bar = selected_resource_menu.get_node("healthbar")
+@onready var cancel_res_menu_btn = selected_resource_menu.get_node("cancelSelectedUnitMenu") ## Button Name ist lt. Screenshot
 
 ## --- WORLD TILEMAP REFERENCE ---
+@onready var world_gen : Node2D = get_parent().get_node("worldGen")
+@onready var building_tilemap : TileMapLayer = world_gen.get_node("buildingTileMap")
 var world_tilemap : TileMapLayer = null
 
 ## --- GAME STATE ---
-var selected_unit : CharacterBody2D = null
-var hovering_unit : CharacterBody2D = null
+var selected_unit : UnitBase = null
+var hovering_unit : UnitBase = null
+var selected_resource : ResourceData = null ## Zum Speichern der selektierten Ressource
+
 var resources = { "wood": 0, "stone": 0, "iron": 0, "gold": 0, "food": 0 }
 
 ## --- TIME SYSTEM ---
@@ -52,7 +74,14 @@ const BUILDING_ARCHER = 1
 const BUILDING_WARRIOR = 2
 const BUILDING_LUMBERJACK = 3
 const BUILDING_FARM = 4
-const BUILDING_SIZE = Vector2i(1, 1) ## 1x1 im 32er Grid = 32x32 Pixel
+const BUILDING_SIZE = Vector2i(1, 1)
+
+## --- RESOURCE PORTRAITS (Preload for Performance) ---
+const RES_PORTRAIT_BERRY = preload("res://ASSETS/SPRITES/UI/selectedMenu/resource/resourcePotrait_berry.png")
+const RES_PORTRAIT_GOLD = preload("res://ASSETS/SPRITES/UI/selectedMenu/resource/resourcePotrait_gold.png")
+const RES_PORTRAIT_IRON = preload("res://ASSETS/SPRITES/UI/selectedMenu/resource/resourcePotrait_iron.png")
+const RES_PORTRAIT_STONE = preload("res://ASSETS/SPRITES/UI/selectedMenu/resource/resourcePotrait_stone.png")
+const RES_PORTRAIT_TREE = preload("res://ASSETS/SPRITES/UI/selectedMenu/resource/resourcePotrait_tree.png")
 
 func _ready():
 	setup_ui_signals()
@@ -60,8 +89,11 @@ func _ready():
 	update_resource_ui()
 	update_time_ui()
 	
+	## Menu Reset
 	menu_container.visible = true
 	building_menu_container.visible = false
+	selected_unit_menu.visible = false
+	selected_resource_menu.visible = false
 	
 	if spawn_container == null:
 		var parent = get_parent()
@@ -71,16 +103,11 @@ func _ready():
 	find_world_tilemap()
 
 func find_world_tilemap():
-	## Suche nach dem TileMap mit den Bodendaten (16x16)
-	## In world_gen wird es als 'groundTileMap' referenziert (siehe export var)
-	## oder als Child Node hinzugefügt.
-	
 	if world_gen.has_node("groundTileMap"):
 		world_tilemap = world_gen.get_node("groundTileMap")
 	elif world_gen.has_node("terrainTileMap"):
 		world_tilemap = world_gen.get_node("terrainTileMap")
 	else:
-		## Fallback: Erstes TileMapLayer das NICHT building ist
 		for child in world_gen.get_children():
 			if child is TileMapLayer and child != building_tilemap:
 				world_tilemap = child
@@ -100,14 +127,22 @@ func connect_ui_mouse_detection(node: Node):
 		connect_ui_mouse_detection(child)
 
 func setup_ui_signals():
+	## Building Menus
 	menu_container.get_node("buildMenuBtn").pressed.connect(on_build_menu_btn_pressed)
 	building_menu_container.get_node("farmMenuBtn").pressed.connect(func(): switch_building_category("farm"))
 	building_menu_container.get_node("warMenuBtn").pressed.connect(func(): switch_building_category("war"))
 	building_menu_container.get_node("cancelMenuBtn").pressed.connect(on_cancel_menu_btn_pressed)
+	
 	farm_menu_container.get_node("farmBuildingBtn").pressed.connect(func(): start_building_mode(BUILDING_FARM, {}))
 	farm_menu_container.get_node("lumberjackBuildingBtn").pressed.connect(func(): start_building_mode(BUILDING_LUMBERJACK, {}))
 	war_menu_container.get_node("warBuildingBtn").pressed.connect(func(): start_building_mode(BUILDING_WARRIOR, {}))
 	war_menu_container.get_node("archerBuildingBtn").pressed.connect(func(): start_building_mode(BUILDING_ARCHER, {}))
+	
+	## Cancel Unit Menu
+	cancel_unit_menu_btn.pressed.connect(deselect_unit)
+	
+	## Cancel Resource Menu
+	cancel_res_menu_btn.pressed.connect(deselect_resource)
 
 func _process(delta: float):
 	update_hover_detection()
@@ -125,12 +160,8 @@ func _draw():
 	if is_building_mode and last_preview_pos != Vector2i(-1, -1) and not is_mouse_over_ui:
 		var tile_size = building_tilemap.tile_set.tile_size
 		var local_pos = building_tilemap.map_to_local(last_preview_pos)
-		
-		## Zentrierung korrigieren: map_to_local gibt die Mitte zurück
 		var top_left = local_pos - Vector2(tile_size) * 0.5
 		var rect_size = Vector2(tile_size) * Vector2(BUILDING_SIZE)
-		
-		## In Local-Space von game_handler konvertieren zum Zeichnen
 		var global_top_left = building_tilemap.to_global(top_left)
 		var my_local_top_left = to_local(global_top_left)
 		
@@ -146,7 +177,10 @@ func start_building_mode(building_type: int, cost: Dictionary):
 	is_building_mode = true
 	current_building_type = building_type
 	current_building_cost = cost
-	deselect_unit()
+	
+	## Deselect everything
+	if selected_unit != null: deselect_unit()
+	if selected_resource != null: deselect_resource()
 
 func cancel_building_mode():
 	last_preview_pos = Vector2i(-1, -1)
@@ -155,36 +189,22 @@ func cancel_building_mode():
 	queue_redraw()
 
 func is_buildable(building_grid_pos: Vector2i) -> bool:
-	## 1. Check: Ist hier schon ein Gebäude? (im Building Grid 32x32)
-	var source_id = building_tilemap.get_cell_source_id(building_grid_pos)
-	if source_id != -1:
-		return false
-		
-	## Umrechnung: Building Grid (32x32) -> World Grid (16x16)
-	## Da 32 / 16 = 2, entspricht 1 Building Tile genau 2x2 World Tiles.
-	## Die World-Grid Position ist also einfach Building-Grid * 2.
 	var base_world_x = building_grid_pos.x * 2
 	var base_world_y = building_grid_pos.y * 2
 	
-	## Wir prüfen jetzt den 2x2 Bereich im World-Grid (entspricht 1x1 im Building-Grid)
 	for dx in range(2):
 		for dy in range(2):
 			var check_pos = Vector2i(base_world_x + dx, base_world_y + dy)
+			if world_gen.water_cells.has(check_pos): return false
+			if world_gen.resource_data_map.has(check_pos): return false
 			
-			## 2. Check: Wasser (gespeichert in world_gen dictionary)
-			if world_gen.water_cells.has(check_pos):
-				return false
-			
-			## 3. Check: Ressourcen (gespeichert in world_gen dictionary)
-			if world_gen.resource_data_map.has(check_pos):
-				return false
+	var source_id = building_tilemap.get_cell_source_id(building_grid_pos)
+	if source_id != -1: return false
 				
 	return true
 
 func update_building_preview():
 	var mouse_pos = get_global_mouse_position()
-	
-	## Umwandlung Maus -> Building Grid (32x32)
 	var local_mouse = building_tilemap.to_local(mouse_pos)
 	var grid_pos = building_tilemap.local_to_map(local_mouse)
 	
@@ -196,9 +216,7 @@ func update_building_preview():
 		last_preview_pos = grid_pos
 
 func try_place_building(mouse_pos: Vector2):
-	if is_mouse_over_ui:
-		return
-
+	if is_mouse_over_ui: return
 	var local_mouse = building_tilemap.to_local(mouse_pos)
 	var cell_pos = building_tilemap.local_to_map(local_mouse)
 	
@@ -212,7 +230,6 @@ func try_place_building(mouse_pos: Vector2):
 	
 	building_tilemap.set_cell(cell_pos, 0, Vector2i(current_building_type, 8))
 	pay_resources(current_building_cost)
-	
 	last_preview_pos = Vector2i(-1, -1)
 
 func _input(event: InputEvent):
@@ -235,16 +252,186 @@ func _input(event: InputEvent):
 	if event is InputEventKey and event.pressed:
 		if event.keycode == KEY_F1:
 			spawn_warrior_at_mouse()
+		if event.keycode == KEY_X and selected_unit != null:
+			selected_unit.add_xp(50)
 
 func on_build_menu_btn_pressed():
 	menu_container.visible = false
 	building_menu_container.visible = true
+	selected_unit_menu.visible = false
+	selected_resource_menu.visible = false
 	switch_building_category("farm") 
 
 func on_cancel_menu_btn_pressed():
 	cancel_building_mode()
 	building_menu_container.visible = false
+	selected_unit_menu.visible = false
+	selected_resource_menu.visible = false
 	menu_container.visible = true
+
+## --- CLICK HANDLING & SELECTION ---
+
+func get_unit_at_position(pos: Vector2) -> UnitBase:
+	var space_state = get_world_2d().direct_space_state
+	var query = PhysicsPointQueryParameters2D.new()
+	query.position = pos
+	var result = space_state.intersect_point(query, 1)
+	if result.size() > 0:
+		var collider = result[0].collider
+		if collider is UnitBase: return collider
+	return null
+
+func handle_left_click(mouse_pos: Vector2):
+	## 1. Check Resource
+	var resource = world_gen.get_resource_at_position(mouse_pos)
+	if resource != null:
+		select_resource(resource)
+		return
+	
+	## 2. Check Unit
+	var clicked_unit = get_unit_at_position(mouse_pos)
+	if clicked_unit != null:
+		select_unit(clicked_unit)
+	else:
+		## 3. Deselect All
+		deselect_unit()
+		deselect_resource()
+
+## --- UNIT SELECTION ---
+
+func select_unit(unit: UnitBase):
+	if selected_resource != null: deselect_resource()
+	if selected_unit != null and selected_unit != unit: deselect_unit()
+	
+	if is_building_mode:
+		cancel_building_mode()
+		building_menu_container.visible = false
+	
+	menu_container.visible = false
+	
+	selected_unit = unit
+	highlight_selected_unit(unit)
+	
+	if not unit.stats_changed.is_connected(update_selected_unit_ui):
+		unit.stats_changed.connect(update_selected_unit_ui)
+	
+	show_selected_unit_ui(unit)
+
+func deselect_unit():
+	if selected_unit != null:
+		if selected_unit.stats_changed.is_connected(update_selected_unit_ui):
+			selected_unit.stats_changed.disconnect(update_selected_unit_ui)
+		unhighlight_selected_unit(selected_unit)
+		selected_unit = null
+	
+	hovering_unit = null
+	selected_unit_menu.visible = false
+	
+	## Nur Menü zeigen, wenn auch keine Ressource ausgewählt ist
+	if selected_resource == null:
+		menu_container.visible = true
+
+func show_selected_unit_ui(unit: UnitBase):
+	selected_unit_menu.visible = true
+	update_selected_unit_ui(unit)
+
+func update_selected_unit_ui(unit: UnitBase):
+	unit_name_label.text = unit.unit_name + " (Lvl " + str(unit.current_level) + ")"
+	health_text.text = str(int(unit.current_health)) + " / " + str(int(unit.max_health))
+	exp_text.text = str(unit.current_xp) + " / " + str(unit.xp_to_next_level)
+	
+	health_bar.max_value = unit.max_health
+	health_bar.value = unit.current_health
+	
+	exp_bar.max_value = unit.xp_to_next_level
+	exp_bar.value = unit.current_xp
+	
+	if unit.portrait_texture:
+		unit_portrait.texture = unit.portrait_texture
+
+## --- RESOURCE SELECTION ---
+
+func select_resource(res_data: ResourceData):
+	if selected_unit != null: deselect_unit()
+	if selected_resource != null: deselect_resource() ## Reset previous
+	
+	if is_building_mode:
+		cancel_building_mode()
+		building_menu_container.visible = false
+		
+	menu_container.visible = false
+	selected_resource = res_data
+	show_selected_resource_ui(res_data)
+
+func deselect_resource():
+	selected_resource = null
+	selected_resource_menu.visible = false
+	
+	## Nur Menü zeigen, wenn auch keine Unit ausgewählt ist
+	if selected_unit == null:
+		menu_container.visible = true
+
+func show_selected_resource_ui(res_data: ResourceData):
+	selected_resource_menu.visible = true
+	
+	## Name formatieren (erster Buchstabe Groß)
+	res_name_label.text = res_data.resource_type.capitalize()
+	
+	## Values
+	var current = res_data.current_supply
+	var max_s = res_data.max_supply
+	
+	## Bar Update
+	res_health_bar.max_value = max_s
+	res_health_bar.value = current
+	
+	## Text Label Update: "4299/5000"
+	res_health_value_label.text = str(current) + "/" + str(max_s)
+	
+	## Portrait laden
+	var texture_to_load = null
+	match res_data.resource_type:
+		"tree": texture_to_load = RES_PORTRAIT_TREE
+		"stone": texture_to_load = RES_PORTRAIT_STONE
+		"iron": texture_to_load = RES_PORTRAIT_IRON
+		"gold": texture_to_load = RES_PORTRAIT_GOLD
+		"berry": texture_to_load = RES_PORTRAIT_BERRY
+		_: print("Kein Portrait für: ", res_data.resource_type)
+	
+	if texture_to_load:
+		res_portrait.texture = texture_to_load
+
+## --- HOVER & HIGHLIGHT ---
+
+func update_hover_detection():
+	if is_building_mode: return
+	var mouse_pos = get_global_mouse_position()
+	var unit_under_mouse = get_unit_at_position(mouse_pos)
+	if unit_under_mouse != hovering_unit:
+		if hovering_unit != null and hovering_unit != selected_unit: unhighlight_unit(hovering_unit)
+		hovering_unit = unit_under_mouse
+		if hovering_unit != null and hovering_unit != selected_unit: highlight_unit(hovering_unit)
+
+func highlight_unit(unit: UnitBase):
+	var sprite = unit.get_node("unit")
+	if sprite: sprite.modulate = Color.WHITE.lerp(selection_color, 0.3)
+
+func unhighlight_unit(unit: UnitBase):
+	var sprite = unit.get_node("unit")
+	if sprite: sprite.modulate = Color.WHITE
+
+func highlight_selected_unit(unit: UnitBase):
+	var sprite = unit.get_node("unit")
+	if sprite: sprite.modulate = selection_color
+
+func unhighlight_selected_unit(unit: UnitBase):
+	var sprite = unit.get_node("unit")
+	if sprite: sprite.modulate = Color.WHITE
+
+## --- OTHER ---
+
+func handle_right_click(mouse_pos: Vector2):
+	if selected_unit != null: selected_unit.set_target(mouse_pos)
 
 func process_time_system(delta: float):
 	time_accumulator += delta
@@ -299,61 +486,3 @@ func spawn_warrior_at_mouse():
 	var new_warrior = warrior_scene.instantiate()
 	new_warrior.global_position = get_global_mouse_position()
 	spawn_container.add_child(new_warrior)
-
-func update_hover_detection():
-	if is_building_mode: return
-	var mouse_pos = get_global_mouse_position()
-	var unit_under_mouse = get_unit_at_position(mouse_pos)
-	if unit_under_mouse != hovering_unit:
-		if hovering_unit != null and hovering_unit != selected_unit: unhighlight_unit(hovering_unit)
-		hovering_unit = unit_under_mouse
-		if hovering_unit != null and hovering_unit != selected_unit: highlight_unit(hovering_unit)
-
-func get_unit_at_position(pos: Vector2) -> CharacterBody2D:
-	var space_state = get_world_2d().direct_space_state
-	var query = PhysicsPointQueryParameters2D.new()
-	query.position = pos
-	var result = space_state.intersect_point(query, 1)
-	if result.size() > 0:
-		var collider = result[0].collider
-		if collider is CharacterBody2D and collider.has_method("set_target"): return collider
-	return null
-
-func handle_left_click(mouse_pos: Vector2):
-	var resource = world_gen.get_resource_at_position(mouse_pos)
-	if resource != null: show_resource_info(resource); return
-	var clicked_unit = get_unit_at_position(mouse_pos)
-	if clicked_unit != null: select_unit(clicked_unit)
-	else: deselect_unit()
-
-func handle_right_click(mouse_pos: Vector2):
-	if selected_unit != null: selected_unit.set_target(mouse_pos)
-
-func select_unit(unit: CharacterBody2D):
-	if selected_unit != null and selected_unit != unit: deselect_unit()
-	selected_unit = unit
-	highlight_selected_unit(unit)
-
-func deselect_unit():
-	if selected_unit != null: unhighlight_selected_unit(selected_unit)
-	selected_unit = null
-	hovering_unit = null
-
-func highlight_unit(unit: CharacterBody2D):
-	var sprite = unit.get_node("unit")
-	if sprite: sprite.modulate = Color.WHITE.lerp(selection_color, 0.3)
-
-func unhighlight_unit(unit: CharacterBody2D):
-	var sprite = unit.get_node("unit")
-	if sprite: sprite.modulate = Color.WHITE
-
-func highlight_selected_unit(unit: CharacterBody2D):
-	var sprite = unit.get_node("unit")
-	if sprite: sprite.modulate = selection_color
-
-func unhighlight_selected_unit(unit: CharacterBody2D):
-	var sprite = unit.get_node("unit")
-	if sprite: sprite.modulate = Color.WHITE
-
-func show_resource_info(res_data: ResourceData):
-	print("Type:", res_data.resource_type, "Supply:", res_data.current_supply)
