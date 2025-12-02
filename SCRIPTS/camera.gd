@@ -17,10 +17,18 @@ extends Camera2D
 var viewport_size : Vector2
 var min_zoom : float = 1.0
 
+## Referenz zum GameHandler um UI-Status zu prüfen
+@onready var game_handler = get_node("/root/game/gameHandler") ## PFAD GGF. ANPASSEN!
+
 func _ready():
 	viewport_size = get_viewport_rect().size
 	calculate_min_zoom()
 	zoom = Vector2(1.0, 1.0)
+	
+	## Fallback falls Pfad falsch ist:
+	if game_handler == null:
+		## Versuche Suche im Tree
+		game_handler = get_tree().current_scene.find_child("gameHandler", true, false)
 
 func _process(delta):
 	handle_keyboard_movement(delta)
@@ -32,18 +40,11 @@ func _input(event):
 		handle_zoom(event)
 
 func calculate_min_zoom():
-	## Berechne Map-Größe in Pixeln
 	var map_width_px = map_width * tile_size
 	var map_height_px = map_height * tile_size
-	
-	## Berechne Zoom für beide Dimensionen
 	var zoom_x = viewport_size.x / map_width_px
 	var zoom_y = viewport_size.y / map_height_px
-	
-	## Nehme den GRÖSSEREN Wert, damit kein grauer Rand entsteht
 	min_zoom = max(zoom_x, zoom_y)
-	
-	## Sicherheits-Puffer: etwas näher dran (105% statt 95%)
 	min_zoom *= 1.05
 
 func handle_keyboard_movement(delta):
@@ -63,14 +64,20 @@ func handle_keyboard_movement(delta):
 		position += direction * move_speed * delta
 
 func handle_edge_scrolling(delta):
+	## FIX: Wenn Maus über UI ist, nicht scrollen!
+	if game_handler and game_handler.is_mouse_over_ui:
+		return
+		
 	var mouse_pos = get_viewport().get_mouse_position()
 	var direction = Vector2.ZERO
 	
+	## Check X
 	if mouse_pos.x < edge_margin:
 		direction.x -= 1
 	elif mouse_pos.x > viewport_size.x - edge_margin:
 		direction.x += 1
 	
+	## Check Y
 	if mouse_pos.y < edge_margin:
 		direction.y -= 1
 	elif mouse_pos.y > viewport_size.y - edge_margin:
@@ -97,13 +104,8 @@ func zoom_out():
 	apply_boundaries()
 
 func apply_boundaries():
-	## Berechne Map-Grenzen in Pixeln
 	var map_width_px = map_width * tile_size
 	var map_height_px = map_height * tile_size
-	
-	## Berechne sichtbaren Bereich basierend auf Zoom
 	var viewport_half = (viewport_size / zoom) * 0.5
-	
-	## Clamp Position innerhalb der Map-Grenzen
 	position.x = clamp(position.x, viewport_half.x, map_width_px - viewport_half.x)
 	position.y = clamp(position.y, viewport_half.y, map_height_px - viewport_half.y)

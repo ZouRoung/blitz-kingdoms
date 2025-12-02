@@ -1,4 +1,4 @@
-[gd_scene load_steps=43 format=3 uid="uid://b5khnrbjmxvsn"]
+[gd_scene load_steps=45 format=3 uid="uid://b5khnrbjmxvsn"]
 
 [ext_resource type="Texture2D" uid="uid://cbqx34dmu8v4l" path="res://ASSETS/SPRITES/UI/topbar/topbar.png" id="2_wug7n"]
 [ext_resource type="Texture2D" uid="uid://8ftejx61stwf" path="res://ASSETS/SPRITES/UI/topbar/topbarTimer.png" id="3_b2kkc"]
@@ -39,6 +39,8 @@
 [ext_resource type="Texture2D" uid="uid://c2oie0dxr6o4q" path="res://ASSETS/SPRITES/UI/selectedMenu/progressbar_health_progress.png" id="36_qjv4d"]
 [ext_resource type="Texture2D" uid="uid://c4dgw41aiw5il" path="res://ASSETS/SPRITES/UI/selectedMenu/progressbar_exp_progress.png" id="38_lciwa"]
 [ext_resource type="Texture2D" uid="uid://djjm1x31d3qef" path="res://ASSETS/SPRITES/UI/selectedMenu/resource/resourcePotrait_tree.png" id="39_p220t"]
+[ext_resource type="Texture2D" uid="uid://dvkic6utacm0k" path="res://ASSETS/SPRITES/UI/unitBuilding/unitBuildingBackground.png" id="40_7sd6b"]
+[ext_resource type="PackedScene" uid="uid://cs5luiajv1xwr" path="res://OBJECTS/unit_spawn_button.tscn" id="44_s7lqb"]
 
 [sub_resource type="CompressedTexture2D" id="CompressedTexture2D_lciwa"]
 load_path = "res://.godot/imported/button_buildmenu_cancel0_normal.png-0b226b87be60d3657f83f9b50a0ef7a2.ctex"
@@ -260,6 +262,7 @@ texture_pressed = ExtResource("16_0yt0s")
 texture_hover = ExtResource("17_xj1yf")
 
 [node name="selectedUnitMenu" type="Node2D" parent="base/bottomMenu"]
+visible = false
 
 [node name="menuBackground" type="Sprite2D" parent="base/bottomMenu/selectedUnitMenu"]
 position = Vector2(10, 60)
@@ -339,6 +342,7 @@ texture_pressed = SubResource("CompressedTexture2D_p220t")
 texture_hover = SubResource("CompressedTexture2D_7sd6b")
 
 [node name="selectedResourceMenu" type="Node2D" parent="base/bottomMenu"]
+visible = false
 
 [node name="menuBackground" type="Sprite2D" parent="base/bottomMenu/selectedResourceMenu"]
 position = Vector2(10, 60)
@@ -402,6 +406,50 @@ offset_left = 192.0
 offset_top = -20.0
 offset_right = 203.0
 offset_bottom = -9.0
+scale = Vector2(4.001361, 4.001361)
+texture_normal = SubResource("CompressedTexture2D_lciwa")
+texture_pressed = SubResource("CompressedTexture2D_p220t")
+texture_hover = SubResource("CompressedTexture2D_7sd6b")
+
+[node name="selectedUnitBuildingMenu" type="Node2D" parent="base/bottomMenu"]
+visible = false
+
+[node name="menuBackground" type="Sprite2D" parent="base/bottomMenu/selectedUnitBuildingMenu"]
+position = Vector2(10, 46)
+scale = Vector2(4, 4)
+texture = ExtResource("40_7sd6b")
+
+[node name="unitSpawnButton" parent="base/bottomMenu/selectedUnitBuildingMenu" instance=ExtResource("44_s7lqb")]
+position = Vector2(-59, 68)
+
+[node name="BoxContainerQueue" type="BoxContainer" parent="base/bottomMenu/selectedUnitBuildingMenu"]
+clip_contents = true
+custom_minimum_size = Vector2(4, 0)
+offset_left = -166.99998
+offset_top = -27.0
+offset_right = 484.42847
+offset_bottom = 73.0
+scale = Vector2(0.35, 0.35)
+theme_override_constants/separation = 69
+
+[node name="HBoxContainer" type="HBoxContainer" parent="base/bottomMenu/selectedUnitBuildingMenu/BoxContainerQueue"]
+clip_contents = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="QueueFirstSlot" type="BoxContainer" parent="base/bottomMenu/selectedUnitBuildingMenu"]
+clip_contents = true
+offset_left = -200.00002
+offset_top = 19.999996
+offset_right = -111.000015
+offset_bottom = 116.0
+theme_override_constants/separation = 69
+
+[node name="cancelSelectedUnitBuildingMenu" type="TextureButton" parent="base/bottomMenu/selectedUnitBuildingMenu"]
+offset_left = 192.0
+offset_top = -36.0
+offset_right = 203.0
+offset_bottom = -25.0
 scale = Vector2(4.001361, 4.001361)
 texture_normal = SubResource("CompressedTexture2D_lciwa")
 texture_pressed = SubResource("CompressedTexture2D_p220t")

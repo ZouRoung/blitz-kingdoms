@@ -1,0 +1,33 @@
+[gd_scene load_steps=5 format=3 uid="uid://cs5luiajv1xwr"]
+
+[ext_resource type="Texture2D" uid="uid://b3o47to3hv3o0" path="res://ASSETS/SPRITES/UI/unitBuilding/unitButtons/Warrior/unitWarriorButton_normal.png" id="1_hd83h"]
+[ext_resource type="Script" uid="uid://buf3mw8abp08d" path="res://SCRIPTS/unit_spawn_button.gd" id="1_wu42j"]
+[ext_resource type="Texture2D" uid="uid://wvmjqfg8sme2" path="res://ASSETS/SPRITES/UI/unitBuilding/unitButtons/Warrior/unitWarriorButton_pressed.png" id="2_wu42j"]
+[ext_resource type="Texture2D" uid="uid://cn1s8j1fdxibr" path="res://ASSETS/SPRITES/UI/unitBuilding/unitButtons/Warrior/unitWarriorButton_hover.png" id="3_0jvc3"]
+
+[node name="unitSpawnButton" type="Node2D"]
+script = ExtResource("1_wu42j")
+
+[node name="unitBuildingSpawnBtn" type="TextureButton" parent="."]
+offset_left = -38.0
+offset_top = -44.0
+offset_right = 6.0
+offset_bottom = 4.0
+scale = Vector2(1.7747809, 1.7747809)
+texture_normal = ExtResource("1_hd83h")
+texture_pressed = ExtResource("2_wu42j")
+texture_hover = ExtResource("3_0jvc3")
+
+[node name="unitNameText" type="Label" parent="."]
+offset_left = -36.000004
+offset_top = 22.0
+offset_right = 41.884212
+offset_bottom = 39.892334
+scale = Vector2(0.95012796, 0.95012796)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 2
+theme_override_font_sizes/font_size = 12
+text = "Warrior"
+horizontal_alignment = 1
+vertical_alignment = 1
+clip_text = true

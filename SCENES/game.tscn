@@ -8,6 +8,8 @@
 
 [node name="worldGen" parent="." instance=ExtResource("1_2sn7y")]
 
+[node name="production_buildings" type="Node2D" parent="."]
+
 [node name="gameHandler" parent="." instance=ExtResource("2_w4tjv")]
 
 [node name="Units" type="Node2D" parent="."]
