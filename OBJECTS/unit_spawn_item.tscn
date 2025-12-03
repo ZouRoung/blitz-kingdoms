@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3 uid="uid://bj4460km71my5"]
+[gd_scene load_steps=9 format=3 uid="uid://bj4460km71my5"]
 
 [ext_resource type="Script" uid="uid://ck21lrwfjdwmi" path="res://SCRIPTS/unit_spawn_item.gd" id="1_45yk5"]
 [ext_resource type="Texture2D" uid="uid://volxbt8umq" path="res://ASSETS/SPRITES/UI/unitBuilding/unitSpawner/unitBuildingSpawner_background.png" id="1_l2a6f"]
@@ -7,54 +7,63 @@
 [ext_resource type="Texture2D" uid="uid://cmnkwuony7wq6" path="res://ASSETS/SPRITES/UI/unitBuilding/unitBuildingProgressbar_under.png" id="4_qc8p2"]
 [ext_resource type="Texture2D" uid="uid://bouhxcm4l5qme" path="res://ASSETS/SPRITES/UI/unitBuilding/unitBuildingProgressbar_over.png" id="5_6b2aq"]
 [ext_resource type="Texture2D" uid="uid://c51fogqacj3xv" path="res://ASSETS/SPRITES/UI/unitBuilding/unitBuildingProgressbar_progress.png" id="6_85mo4"]
+[ext_resource type="Texture2D" uid="uid://bdu3ufe1p2pu3" path="res://ASSETS/SPRITES/UI/unitBuilding/unitSpawner/unitBuildingSpawner_cancel_hover.png" id="8_jdfsh"]
 
 [node name="unitSpawnItem" type="Control"]
 custom_minimum_size = Vector2(89, 0)
 layout_mode = 3
-anchor_right = 0.076000005
-anchor_bottom = 0.148
-offset_right = 0.44799805
-offset_bottom = 0.09600067
+anchor_right = 0.046000004
+anchor_bottom = 0.10700001
+offset_right = 0.6799927
+offset_bottom = 0.4399948
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_45yk5")
 
 [node name="background" type="Sprite2D" parent="."]
-position = Vector2(44, 48)
+position = Vector2(44, 58)
 scale = Vector2(2, 2)
 texture = ExtResource("1_l2a6f")
 
 [node name="unit" type="Sprite2D" parent="."]
-position = Vector2(44, 48)
+position = Vector2(44, 58)
 scale = Vector2(2, 2)
 texture = ExtResource("2_45yk5")
 
 [node name="over" type="Sprite2D" parent="."]
-position = Vector2(44, 48)
+position = Vector2(44, 58)
 scale = Vector2(2, 2)
 texture = ExtResource("3_jdfsh")
 
 [node name="progressBar" type="TextureProgressBar" parent="."]
 layout_mode = 0
 offset_left = 4.0
-offset_top = 77.0
+offset_top = 97.0
 offset_right = 44.0
-offset_bottom = 84.0
+offset_bottom = 104.0
 scale = Vector2(2.000031, 2.000031)
 texture_under = ExtResource("4_qc8p2")
 texture_over = ExtResource("5_6b2aq")
 texture_progress = ExtResource("6_85mo4")
 
-[node name="unitQueueText" type="Label" parent="."]
+[node name="unitAmountText" type="Label" parent="."]
 layout_mode = 0
-offset_left = 66.0
-offset_right = 89.15477
-offset_bottom = 22.999996
+offset_left = 18.000002
+offset_top = -4.000001
+offset_right = 86.411835
+offset_bottom = 24.0
 scale = Vector2(0.95012796, 0.95012796)
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
-theme_override_constants/outline_size = 2
-theme_override_font_sizes/font_size = 16
-text = "1"
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 20
+text = "10"
 horizontal_alignment = 1
 vertical_alignment = 1
 clip_text = true
+
+[node name="cancelButton" type="TextureButton" parent="."]
+layout_mode = 0
+offset_right = 44.0
+offset_bottom = 58.0
+scale = Vector2(1.9999442, 1.9999442)
+texture_hover = ExtResource("8_jdfsh")

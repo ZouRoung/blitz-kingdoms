@@ -62,7 +62,8 @@ grow_vertical = 2
 [node name="base" type="CanvasLayer" parent="."]
 
 [node name="topbar" type="Node2D" parent="base"]
-position = Vector2(727, 0)
+position = Vector2(1012, 0)
+scale = Vector2(1.5, 1.5)
 
 [node name="resourcesBar" type="Sprite2D" parent="base/topbar"]
 position = Vector2(66.50006, 21.250002)
@@ -143,6 +144,7 @@ clip_text = true
 
 [node name="map" type="Node2D" parent="base"]
 visible = false
+scale = Vector2(2, 2)
 
 [node name="mapSprite" type="Sprite2D" parent="base/map"]
 position = Vector2(102, 568)
@@ -150,7 +152,8 @@ scale = Vector2(4, 4)
 texture = ExtResource("4_6nyr8")
 
 [node name="bottomMenu" type="Node2D" parent="base"]
-position = Vector2(603, 520)
+position = Vector2(994.00006, 888)
+scale = Vector2(1.5, 1.5)
 
 [node name="menu" type="Node2D" parent="base/bottomMenu"]
 
@@ -262,7 +265,6 @@ texture_pressed = ExtResource("16_0yt0s")
 texture_hover = ExtResource("17_xj1yf")
 
 [node name="selectedUnitMenu" type="Node2D" parent="base/bottomMenu"]
-visible = false
 
 [node name="menuBackground" type="Sprite2D" parent="base/bottomMenu/selectedUnitMenu"]
 position = Vector2(10, 60)
@@ -420,15 +422,15 @@ scale = Vector2(4, 4)
 texture = ExtResource("40_7sd6b")
 
 [node name="unitSpawnButton" parent="base/bottomMenu/selectedUnitBuildingMenu" instance=ExtResource("44_s7lqb")]
-position = Vector2(-59, 68)
+position = Vector2(-61.333374, 78)
 
 [node name="BoxContainerQueue" type="BoxContainer" parent="base/bottomMenu/selectedUnitBuildingMenu"]
 clip_contents = true
 custom_minimum_size = Vector2(4, 0)
-offset_left = -166.99998
-offset_top = -27.0
-offset_right = 484.42847
-offset_bottom = 73.0
+offset_left = -167.99998
+offset_top = -28.666677
+offset_right = 483.42847
+offset_bottom = 87.52363
 scale = Vector2(0.35, 0.35)
 theme_override_constants/separation = 69
 
@@ -439,10 +441,11 @@ size_flags_horizontal = 3
 
 [node name="QueueFirstSlot" type="BoxContainer" parent="base/bottomMenu/selectedUnitBuildingMenu"]
 clip_contents = true
-offset_left = -200.00002
-offset_top = 19.999996
-offset_right = -111.000015
-offset_bottom = 116.0
+offset_left = -196.00005
+offset_top = 16.666683
+offset_right = -98.222336
+offset_bottom = 135.18518
+scale = Vector2(0.9, 0.9)
 theme_override_constants/separation = 69
 
 [node name="cancelSelectedUnitBuildingMenu" type="TextureButton" parent="base/bottomMenu/selectedUnitBuildingMenu"]

@@ -31,3 +31,25 @@ text = "Warrior"
 horizontal_alignment = 1
 vertical_alignment = 1
 clip_text = true
+
+[node name="troopAmoutSlider" type="HSlider" parent="."]
+offset_left = -44.0
+offset_top = -57.0
+offset_right = 46.0
+offset_bottom = -41.0
+min_value = 1.0
+value = 1.0
+
+[node name="troopAmountText" type="Label" parent="."]
+offset_left = -36.000004
+offset_top = -70.0
+offset_right = 41.884212
+offset_bottom = -47.0
+scale = Vector2(0.95012796, 0.95012796)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 16
+text = "1"
+horizontal_alignment = 1
+vertical_alignment = 1
+clip_text = true

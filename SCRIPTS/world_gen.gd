@@ -1,8 +1,8 @@
 extends Node2D
 
 @export_group("Map Settings")
-@export var map_width : int = 100
-@export var map_height : int = 100
+@export var map_width : int = 200
+@export var map_height : int = 200
 @export var tile_size : int = 16
 
 @export_group("Ground Grass Tiles")
@@ -15,6 +15,7 @@ extends Node2D
 
 @export_group("Water Tiles")
 @export var water_center : Vector2i = Vector2i(0,11)
+## ... (Deine Water Tile Variablen bleiben gleich, ich kürze hier für Übersichtlichkeit nicht, aber du kannst deine Liste lassen) ...
 @export var water_bottom_left : Vector2i = Vector2i(1,11)
 @export var water_bottom_right : Vector2i = Vector2i(2,11)
 @export var water_top_left : Vector2i = Vector2i(3,11)
@@ -80,15 +81,10 @@ extends Node2D
 @export var berry_cluster_chance : float = 0.7
 
 @export_group("Spawn Settings")
-## Mindestabstand zwischen Spawn-Punkten (in Tiles)
-@export var min_spawn_distance : int = 20
-
-## Mindestabstand zum Kartenrand (in Tiles)
-@export var min_border_distance : int = 10
-
-## Maximale Versuche, einen gültigen Spawn-Punkt zu finden
-@export var max_spawn_attempts : int = 100
-
+@export var min_spawn_distance : int = 35
+@export var min_border_distance : int = 20
+@export var max_spawn_attempts : int = 200
+@export var spawn_player_count : int = 8
 
 var grass_noise := FastNoiseLite.new()
 var water_noise := FastNoiseLite.new()
@@ -99,11 +95,17 @@ var forest_noise := FastNoiseLite.new()
 var water_cells : Dictionary = {}
 var resource_data_map : Dictionary = {}
 
+## Speichert ALLE Zellen, die für Spawns reserviert sind (Basis + Raum + Mauern + Puffer)
+## In diesem Bereich darf KEIN Wasser und KEINE Ressource entstehen
+var spawn_occupied_cells : Dictionary = {}
+
 @onready var ground_tilemap : TileMapLayer = $groundTileMap
 @onready var water_tilemap : TileMapLayer = $WaterTileMap
 @onready var ground_details_tilemap : TileMapLayer = $groundDetailsTileMap
 @onready var resource_tilemap : TileMapLayer = $resourceTileMap
-@onready var spawn_marker_tilemap : TileMapLayer = $spawnMarkerTileMap
+## spawnMarkerTileMap wurde entfernt, stattdessen nutzen wir buildingTileMap
+@onready var building_tilemap : TileMapLayer = $buildingTileMap 
+@onready var walls_tilemap : TileMapLayer = $wallsTileMap
 
 var spawn_points : Array[Vector2i] = []
 
@@ -117,23 +119,23 @@ func setup_noise():
 	grass_noise.fractal_type = FastNoiseLite.FRACTAL_FBM
 	grass_noise.fractal_octaves = grass_noise_octaves
 	grass_noise.frequency = grass_noise_frequency
-	
+
 	water_noise.seed = randi()
 	water_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
 	water_noise.fractal_type = FastNoiseLite.FRACTAL_FBM
 	water_noise.fractal_octaves = 3
 	water_noise.frequency = water_noise_frequency
-	
+
 	detail_noise.seed = randi()
 	detail_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
 	detail_noise.fractal_type = FastNoiseLite.FRACTAL_FBM
 	detail_noise.fractal_octaves = 3
 	detail_noise.frequency = detail_cluster_frequency
-	
+
 	resource_noise.seed = randi()
 	resource_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
 	resource_noise.frequency = 0.1
-	
+
 	forest_noise.seed = randi()
 	forest_noise.noise_type = FastNoiseLite.TYPE_PERLIN
 	forest_noise.fractal_type = FastNoiseLite.FRACTAL_FBM
@@ -141,14 +143,22 @@ func setup_noise():
 	forest_noise.frequency = forest_noise_frequency
 
 func generate_world():
+	## Reset
 	ground_tilemap.clear()
 	water_tilemap.clear()
 	ground_details_tilemap.clear()
 	resource_tilemap.clear()
+	building_tilemap.clear() ## WICHTIG: Building Map resetten
+	walls_tilemap.clear()
+	
 	water_cells.clear()
 	resource_data_map.clear()
-	var placed_resources = {}
+	spawn_occupied_cells.clear()
+	spawn_points.clear()
 	
+	var placed_resources = {}
+
+	## 1. Boden (Gras)
 	for x in map_width:
 		for y in map_height:
 			var cell = Vector2i(x, y)
@@ -157,23 +167,33 @@ func generate_world():
 			var grass_index = int(normalized_val * grass_tiles.size())
 			grass_index = clamp(grass_index, 0, grass_tiles.size() - 1)
 			ground_tilemap.set_cell(cell, 0, grass_tiles[grass_index])
-	
+
+	## 2. Spawns + Mauern + Schutzzone reservieren
+	generate_spawn_points(spawn_player_count)
+
+	## 3. Wasser generieren
 	for x in map_width:
 		for y in map_height:
 			var cell = Vector2i(x, y)
+			
+			## Kein Wasser in der Schutzzone
+			if spawn_occupied_cells.has(cell): 
+				continue
+			
 			var water_val = water_noise.get_noise_2d(x, y)
 			if water_val > water_threshold:
 				water_cells[cell] = true
-	
+
 	remove_small_water_clusters()
 	clean_water_shapes()
 	apply_water_autotiling()
-	
+
+	## 4. Details
 	for x in map_width:
 		for y in map_height:
 			var cell = Vector2i(x, y)
-			if water_cells.has(cell): continue
-			
+			if water_cells.has(cell) or spawn_occupied_cells.has(cell): continue
+
 			var detail_noise_val = detail_noise.get_noise_2d(x, y)
 			if detail_noise_val > detail_noise_threshold:
 				var detail_strength = (detail_noise_val - detail_noise_threshold) / (1.0 - detail_noise_threshold)
@@ -182,23 +202,26 @@ func generate_world():
 				var detail_index = int(inverted_strength * detail_tiles.size())
 				detail_index = clamp(detail_index, 0, detail_tiles.size() - 1)
 				ground_details_tilemap.set_cell(cell, 0, detail_tiles[detail_index])
-	
+
+	## 5. Ressourcen & Wald
 	for x in map_width:
 		for y in map_height:
 			var cell = Vector2i(x, y)
-			if water_cells.has(cell) or placed_resources.has(cell): continue
 			
+			if water_cells.has(cell) or placed_resources.has(cell) or spawn_occupied_cells.has(cell): 
+				continue
+
 			var forest_val = forest_noise.get_noise_2d(x, y)
 			if forest_val > forest_threshold:
 				if randf() < forest_density:
 					place_forest_tree(cell, forest_val, placed_resources)
-				continue
-			
+					continue
+
 			if randf() < resource_spawn_chance:
 				place_random_resource(cell, placed_resources)
-				
-	## Spawn-Punkte generieren (Beispiel: 4 Spieler)
-	generate_spawn_points(16)
+
+	## 6. Visualisierung: Burg und Mauern bauen
+	build_bases_visuals()
 
 func remove_small_water_clusters():
 	var visited = {}
@@ -216,7 +239,7 @@ func remove_small_water_clusters():
 			for n in neighbors:
 				if water_cells.has(n) and not visited.has(n): queue.append(n)
 		clusters.append(cluster)
-	
+
 	for cluster in clusters:
 		if cluster.size() < min_water_cluster_size:
 			for cell in cluster: water_cells.erase(cell)
@@ -232,21 +255,21 @@ func clean_water_shapes():
 			var bottom = water_cells.has(Vector2i(cell.x, cell.y + 1))
 			var left = water_cells.has(Vector2i(cell.x - 1, cell.y))
 			var right = water_cells.has(Vector2i(cell.x + 1, cell.y))
-			
+
 			var n_count = 0
 			if top: n_count += 1
 			if bottom: n_count += 1
 			if left: n_count += 1
 			if right: n_count += 1
-			
+
 			if n_count <= 1:
 				to_remove.append(cell); changes_made = true; continue
-			
+
 			if (top or bottom) and not left and not right:
 				to_remove.append(cell); changes_made = true; continue
 			if (left or right) and not top and not bottom:
 				to_remove.append(cell); changes_made = true; continue
-				
+
 		for c in to_remove: water_cells.erase(c)
 		if not changes_made: break
 		iteration += 1
@@ -255,25 +278,25 @@ func apply_water_autotiling():
 	for cell in water_cells.keys():
 		var x = cell.x
 		var y = cell.y
-		
+
 		var n_top = water_cells.has(Vector2i(x, y - 1))
 		var n_bottom = water_cells.has(Vector2i(x, y + 1))
 		var n_left = water_cells.has(Vector2i(x - 1, y))
 		var n_right = water_cells.has(Vector2i(x + 1, y))
-		
+
 		var n_top_left = water_cells.has(Vector2i(x - 1, y - 1))
 		var n_top_right = water_cells.has(Vector2i(x + 1, y - 1))
 		var n_bottom_left = water_cells.has(Vector2i(x - 1, y + 1))
 		var n_bottom_right = water_cells.has(Vector2i(x + 1, y + 1))
-		
+
 		var bitmask = 0
 		if n_top: bitmask += 1
 		if n_bottom: bitmask += 2
 		if n_left: bitmask += 4
 		if n_right: bitmask += 8
-		
+
 		var water_tile = water_center
-		
+
 		match bitmask:
 			15:
 				if not n_top_left and not n_bottom_right:
@@ -285,53 +308,42 @@ func apply_water_autotiling():
 				elif not n_bottom_left: water_tile = water_inner_bottom_left
 				elif not n_bottom_right: water_tile = water_inner_bottom_right
 				else: water_tile = water_center
-			
 			14:
 				if not n_bottom_left: water_tile = water_top_with_bottom_left
 				elif not n_bottom_right: water_tile = water_top_with_bottom_right
 				else: water_tile = water_top
-				
 			13:
 				if not n_top_left: water_tile = water_bottom_with_top_left
 				elif not n_top_right: water_tile = water_bottom_with_top_right
 				else: water_tile = water_bottom
-			
 			11:
 				if not n_top_right: water_tile = water_left_with_top_right
 				elif not n_bottom_right: water_tile = water_left_with_bottom_right
 				else: water_tile = water_left
-				
 			7:
 				if not n_top_left: water_tile = water_right_with_top_left
 				elif not n_bottom_left: water_tile = water_right_with_bottom_left
 				else: water_tile = water_right
-				
 			5: 
 				if not n_top_left: water_tile = water_bottom_right_with_top_left
 				else: water_tile = water_bottom_right
-
 			9:
 				if not n_top_right: water_tile = water_bottom_left_with_top_right
 				else: water_tile = water_bottom_left
-
 			6:
 				if not n_bottom_left: water_tile = water_top_right_with_bottom_left
 				else: water_tile = water_top_right
-
 			10:
 				if not n_bottom_right: water_tile = water_top_left_with_bottom_right
 				else: water_tile = water_top_left
-
 			3: water_tile = water_center
 			12: water_tile = water_center
-			
 			1: water_tile = water_bottom
 			2: water_tile = water_top
 			4: water_tile = water_right
 			8: water_tile = water_left
-			
 			0: water_tile = water_center
-			
+
 		water_tilemap.set_cell(cell, 0, water_tile)
 
 func place_random_resource(cell: Vector2i, placed_resources: Dictionary):
@@ -349,32 +361,32 @@ func place_single_resource(cell: Vector2i, tile_list: Array[Vector2i], placed_re
 	var resource_type = get_resource_type_from_tiles(tile_list)
 	var supply = get_resource_supply(resource_type)
 	var sprite_index = get_sprite_index_for_supply(supply)
-	
+
 	var atlas_coord = tile_list[sprite_index]
 	resource_tilemap.set_cell(cell, 0, atlas_coord)
 	placed_resources[cell] = true
-	
+
 	var res_data = ResourceData.new()
 	res_data.world_position = cell
 	res_data.resource_type = resource_type
 	res_data.max_supply = supply
 	res_data.current_supply = supply
-	
+
 	resource_data_map[cell] = res_data
 
 func place_forest_tree(cell: Vector2i, forest_strength: float, placed_resources: Dictionary):
 	var supply = get_resource_supply("tree")
 	var tree_index = get_sprite_index_for_supply(supply)
-	
+
 	resource_tilemap.set_cell(cell, 0, tree_tiles[tree_index])
 	placed_resources[cell] = true
-	
+
 	var res_data = ResourceData.new()
 	res_data.world_position = cell
 	res_data.resource_type = "tree"
 	res_data.max_supply = supply
 	res_data.current_supply = supply
-	
+
 	resource_data_map[cell] = res_data
 
 func place_berry_cluster(cell: Vector2i, placed_resources: Dictionary):
@@ -383,7 +395,7 @@ func place_berry_cluster(cell: Vector2i, placed_resources: Dictionary):
 			if randf() < 0.5:
 				var c = cell + Vector2i(dx, dy)
 				if c.x >= 0 and c.x < map_width and c.y >= 0 and c.y < map_height:
-					if not placed_resources.has(c) and not water_cells.has(c):
+					if not placed_resources.has(c) and not water_cells.has(c) and not spawn_occupied_cells.has(c):
 						place_single_resource(c, berry_tiles, placed_resources)
 
 func get_resource_supply(resource_type: String) -> int:
@@ -407,23 +419,17 @@ func get_resource_type_from_tiles(tile_list: Array[Vector2i]) -> String:
 	if tile_list == berry_tiles: return "berry"
 	return "unknown"
 
-
-## Öffentliche Schnittstelle für GameHandler
 func get_resource_at_position(world_pos: Vector2) -> ResourceData:
 	var tile_pos = resource_tilemap.local_to_map(resource_tilemap.to_local(world_pos))
 	if resource_data_map.has(tile_pos):
 		return resource_data_map[tile_pos]
 	return null
 
-
 func _input(event: InputEvent):
 	if event is InputEventMouseButton:
 		if event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-			## Mausposition zu Tile-Koordinaten konvertieren
 			var mouse_pos = get_global_mouse_position()
 			var tile_pos = resource_tilemap.local_to_map(resource_tilemap.to_local(mouse_pos))
-			
-			## Prüfen, ob auf dieser Position eine Ressource existiert
 			if resource_data_map.has(tile_pos):
 				show_resource_info(resource_data_map[tile_pos])
 
@@ -433,62 +439,123 @@ func show_resource_info(res_data: ResourceData):
 	print("Supply: ", res_data.current_supply, " / ", res_data.max_supply)
 	print("Position: ", res_data.world_position)
 	print("======================")
-	
+
+## --- SPAWN LOGIK ---
+
 func generate_spawn_points(player_count: int):
 	spawn_points.clear()
-	
+	spawn_occupied_cells.clear()
+
 	print("=== Generiere ", player_count, " Spawn-Punkte ===")
 	
-	for i in range(player_count):
-		var spawn_pos = find_valid_spawn_position()
-		
-		if spawn_pos != Vector2i(-1, -1):
-			spawn_points.append(spawn_pos)
-			print("Spawn-Punkt ", i + 1, ": ", spawn_pos)
-		else:
-			print("WARNUNG: Konnte keinen gültigen Spawn-Punkt ", i + 1, " finden!")
+	var attempts = 0
+	var max_total = max_spawn_attempts * player_count
 	
-	print("=== ", spawn_points.size(), " Spawn-Punkte generiert ===")
-	## Visualisiere Spawn-Punkte
-	visualize_spawn_points()
-
-func find_valid_spawn_position() -> Vector2i:
-	## Versuche max_spawn_attempts mal, einen gültigen Punkt zu finden
-	for attempt in range(max_spawn_attempts):
-		## Zufällige Position innerhalb der Karte (mit Rand-Abstand)
-		var x = randi_range(min_border_distance, map_width - min_border_distance - 1)
-		var y = randi_range(min_border_distance, map_height - min_border_distance - 1)
+	while spawn_points.size() < player_count and attempts < max_total:
+		attempts += 1
+		## WICHTIG: Wir erzeugen Koordinaten im 16px Raster.
+		## Damit das Gebäude (32px) genau passt, müssen wir "gerade" Koordinaten erzwingen.
+		## Ein 32px Tile deckt genau (x, y), (x+1, y), (x, y+1), (x+1, y+1) im 16px Raster ab (wenn x,y gerade sind).
+		var x = randi_range(min_border_distance, map_width - min_border_distance - 12)
+		var y = randi_range(min_border_distance, map_height - min_border_distance - 12)
+		
+		## Mache Koordinaten gerade (durch 2 teilbar) für perfekte Ausrichtung mit 32px Grid
+		if x % 2 != 0: x -= 1
+		if y % 2 != 0: y -= 1
+		
 		var pos = Vector2i(x, y)
-		
-		## Prüfe, ob Position gültig ist
+
 		if is_valid_spawn_position(pos):
-			return pos
-	
-	## Kein gültiger Punkt gefunden
-	return Vector2i(-1, -1)
+			add_spawn_point(pos)
+			print("Spawn-Punkt ", spawn_points.size(), ": ", pos)
+
+	if spawn_points.size() < player_count:
+		print("WARNUNG: Nur ", spawn_points.size(), " / ", player_count, " Spawns gefunden.")
+	else:
+		print("=== ", spawn_points.size(), " Spawn-Punkte erfolgreich gesetzt ===")
 
 func is_valid_spawn_position(pos: Vector2i) -> bool:
-	## 1. Prüfe: Nicht auf Wasser spawnen
-	if water_cells.has(pos):
-		return false
-	
-	## 2. Prüfe: Mindestabstand zu anderen Spawn-Punkten
+	## Prüfe Abstand zu anderen Spawns
 	for existing_spawn in spawn_points:
 		var distance = pos.distance_to(existing_spawn)
 		if distance < min_spawn_distance:
 			return false
 	
-	## Alle Checks bestanden
+	## Prüfe Überlappung mit existierenden Basis-Zonen
+	## Wir prüfen hier einen etwas größeren Bereich, da die Mauern jetzt weiter weg sind
+	for dx in range(-8, 10):
+		for dy in range(-8, 10):
+			if spawn_occupied_cells.has(pos + Vector2i(dx, dy)):
+				return false
+	
 	return true
 
-func visualize_spawn_points():
-	if not spawn_marker_tilemap:
-		return
+func add_spawn_point(pos: Vector2i):
+	spawn_points.append(pos)
 	
-	spawn_marker_tilemap.clear()
+	## Reserviere die ganze Zone um die Mauern
+	## Mauern sind ca. bei -6 bis +7 um den Mittelpunkt (pos)
+	## Wir reservieren von -8 bis +9 für Puffer
 	
-	## Nutze Gold als auffälligen Marker
-	var marker_tile = Vector2i(0, 11)
+	for dx in range(-8, 10):
+		for dy in range(-8, 10):
+			var p = pos + Vector2i(dx, dy)
+			if p.x >= 0 and p.x < map_width and p.y >= 0 and p.y < map_height:
+				spawn_occupied_cells[p] = true
+
+func build_bases_visuals():
+	if not building_tilemap or not walls_tilemap: return
 	
-	for spawn_pos in spawn_points:
-		spawn_marker_tilemap.set_cell(spawn_pos, 0, marker_tile)
+	## Hier KEIN spawn_marker_tilemap clear, da Variable entfernt.
+	building_tilemap.clear()
+	walls_tilemap.clear()
+
+	var building_tile = Vector2i(0, 9)
+	var wall_corner_tl = Vector2i(5, 26)
+	var wall_corner_tr = Vector2i(6, 26)
+	var wall_corner_bl = Vector2i(3, 26)
+	var wall_corner_br = Vector2i(4, 26)
+	var wall_horizontal = Vector2i(1, 26)
+	var wall_vertical = Vector2i(2, 26)
+
+	for pos in spawn_points:
+		## 1. BASIS SETZEN (Auf Building TileMap - 32px Grid)
+		## 'pos' ist im 16px Grid und gerade. 'pos / 2' ergibt die Koordinate im 32px Grid.
+		## Beispiel: pos(20, 20) -> building_pos(10, 10).
+		## Visuell sind beide an Pixelposition (320, 320).
+		var building_pos = pos / 2
+		building_tilemap.set_cell(building_pos, 0, building_tile)
+		
+		## 2. MAUERN SETZEN (Auf Walls TileMap - 16px Grid)
+		## Das Gebäude (32px) nimmt im 16px Grid den Raum (pos.x, pos.y) bis (pos.x+1, pos.y+1) ein.
+		## Das sind 2x2 Tiles. Wir wollen Mauern um diesen 2x2 Block.
+		
+		## Wir definieren die Mauern relativ zu 'pos' (Top-Left des Gebäudes im 16px Grid).
+		## Um Platz zu schaffen (wie im Bild "größer"), gehen wir z.B. 5 Tiles in jede Richtung vom Zentrum weg.
+		## Zentrum des Gebäudes ist grob pos + (0.5, 0.5).
+		
+		## Box Größe: Wir nehmen pos als Anker.
+		## Links: pos.x - 5
+		## Rechts: pos.x + 6 (weil das Gebäude bis pos.x + 1 geht, plus 5 Abstand)
+		
+		var offset_dist = 5 
+		var w_left = pos.x - offset_dist
+		var w_right = pos.x + 1 + offset_dist
+		var w_top = pos.y - offset_dist
+		var w_bottom = pos.y + 1 + offset_dist
+		
+		## Horizontale Mauern
+		for x in range(w_left + 1, w_right):
+			walls_tilemap.set_cell(Vector2i(x, w_top), 0, wall_horizontal)
+			walls_tilemap.set_cell(Vector2i(x, w_bottom), 0, wall_horizontal)
+			
+		## Vertikale Mauern
+		for y in range(w_top + 1, w_bottom):
+			walls_tilemap.set_cell(Vector2i(w_left, y), 0, wall_vertical)
+			walls_tilemap.set_cell(Vector2i(w_right, y), 0, wall_vertical)
+			
+		## Ecken
+		walls_tilemap.set_cell(Vector2i(w_left, w_top), 0, wall_corner_tl)
+		walls_tilemap.set_cell(Vector2i(w_right, w_top), 0, wall_corner_tr)
+		walls_tilemap.set_cell(Vector2i(w_left, w_bottom), 0, wall_corner_bl)
+		walls_tilemap.set_cell(Vector2i(w_right, w_bottom), 0, wall_corner_br)

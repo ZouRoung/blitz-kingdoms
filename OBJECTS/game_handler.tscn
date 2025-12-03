@@ -1,12 +1,16 @@
-[gd_scene load_steps=5 format=3 uid="uid://yopmjcm1w1pd"]
+[gd_scene load_steps=7 format=3 uid="uid://yopmjcm1w1pd"]
 
 [ext_resource type="Script" uid="uid://dypyrhrdleaej" path="res://SCRIPTS/game_handler.gd" id="1_u8uyr"]
 [ext_resource type="PackedScene" uid="uid://cexqy5rvxss56" path="res://OBJECTS/UNITS/unit_warrior.tscn" id="2_to7rp"]
 [ext_resource type="PackedScene" uid="uid://do3xpjagdp1u7" path="res://OBJECTS/UNITS/unit_archer.tscn" id="3_egdtb"]
 [ext_resource type="PackedScene" uid="uid://bj4460km71my5" path="res://OBJECTS/unit_spawn_item.tscn" id="4_vhnot"]
+[ext_resource type="Texture2D" uid="uid://bynxyccaqu5ov" path="res://ASSETS/SPRITES/UI/unitPortrait/warrior_portrait.png" id="5_7ee58"]
+[ext_resource type="Texture2D" uid="uid://vpph2cddpbtv" path="res://ASSETS/SPRITES/UI/unitPortrait/archer_portrait.png" id="6_btetb"]
 
 [node name="gameHandler" type="Node2D"]
 script = ExtResource("1_u8uyr")
 warrior_scene = ExtResource("2_to7rp")
 archer_scene = ExtResource("3_egdtb")
 spawn_item_scene = ExtResource("4_vhnot")
+portrait_warrior = ExtResource("5_7ee58")
+portrait_archer = ExtResource("6_btetb")

@@ -2,6 +2,9 @@ extends Node2D
 
 @onready var btn = $unitBuildingSpawnBtn
 @onready var label = $unitNameText
+## Achte auf die Schreibweise im Screenshot: "troopAmoutSlider" (ohne n)
+@onready var slider = $troopAmoutSlider 
+@onready var amount_text = $troopAmountText
 
 ## Preload Textures
 const WARRIOR_NORMAL = preload("res://ASSETS/SPRITES/UI/unitBuilding/unitButtons/Warrior/unitWarriorButton_normal.png")
@@ -13,12 +16,24 @@ const ARCHER_HOVER = preload("res://ASSETS/SPRITES/UI/unitBuilding/unitButtons/A
 const ARCHER_PRESSED = preload("res://ASSETS/SPRITES/UI/unitBuilding/unitButtons/Archer/unitArcherButton_pressed.png")
 
 var current_unit_type : String = ""
+var current_amount : int = 10
 
-signal spawn_clicked(unit_type)
+## Signal sendet nun Typ UND Menge
+signal spawn_clicked(unit_type, amount)
 
 func _ready():
 	if btn:
 		btn.pressed.connect(_on_btn_pressed)
+	
+	if slider:
+		## Slider Konfiguration (falls nicht im Editor gesetzt)
+		slider.min_value = 10
+		slider.max_value = 500
+		slider.step = 10
+		slider.value = 10
+		slider.value_changed.connect(_on_slider_changed)
+		
+	update_amount_text()
 
 func update_button(unit_type: String):
 	current_unit_type = unit_type
@@ -33,5 +48,14 @@ func update_button(unit_type: String):
 		btn.texture_hover = ARCHER_HOVER
 		btn.texture_pressed = ARCHER_PRESSED
 
+func _on_slider_changed(value: float):
+	current_amount = int(value)
+	update_amount_text()
+
+func update_amount_text():
+	if amount_text:
+		amount_text.text = str(current_amount)
+
 func _on_btn_pressed():
-	spawn_clicked.emit(current_unit_type)
+	## Sende Typ und die ausgewählte Menge
+	spawn_clicked.emit(current_unit_type, current_amount)

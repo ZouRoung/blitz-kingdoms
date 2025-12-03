@@ -12,6 +12,11 @@ extends Node2D
 @export var spawn_item_scene : PackedScene 
 @export var spawn_container : Node2D
 
+## --- NEU: PORTRAIT REFERENZEN ---
+@export_group("Unit Assets")
+@export var portrait_warrior : Texture2D 
+@export var portrait_archer : Texture2D  
+
 ## --- UI REFERENCES (TOP BAR) ---
 @onready var topbar = get_parent().get_node("ui/base/topbar")
 @onready var timer_label = topbar.get_node("timer")
@@ -27,6 +32,8 @@ extends Node2D
 @onready var building_menu_container = bottom_menu_root.get_node("buildingMenu")
 @onready var farm_menu_container = building_menu_container.get_node("farmMenu")
 @onready var war_menu_container = building_menu_container.get_node("warMenu")
+## Referenz auf den Zurück-Button im Building Menü (das "X" oder "Cancel" dort)
+@onready var building_menu_cancel_btn = building_menu_container.get_node("cancelMenuBtn")
 
 ## --- UI REFERENCES (SELECTED UNIT MENU) ---
 @onready var selected_unit_menu = bottom_menu_root.get_node("selectedUnitMenu")
@@ -67,7 +74,11 @@ var hovering_unit : UnitBase = null
 var selected_resource : ResourceData = null
 var selected_building : UnitProductionBuilding = null 
 
-var resources = { "wood": 0, "stone": 0, "iron": 0, "gold": 0, "food": 0 }
+var resources = { "wood": 1000, "stone": 1000, "iron": 1000, "gold": 1000, "food": 1000 }
+
+## --- PLAYER TERRITORY ---
+var my_base_grid_pos : Vector2i = Vector2i.ZERO
+var allowed_build_rect : Rect2i
 
 ## --- TIME SYSTEM ---
 var time_minutes : int = 0
@@ -95,6 +106,20 @@ const RES_PORTRAIT_IRON = preload("res://ASSETS/SPRITES/UI/selectedMenu/resource
 const RES_PORTRAIT_STONE = preload("res://ASSETS/SPRITES/UI/selectedMenu/resource/resourcePotrait_stone.png")
 const RES_PORTRAIT_TREE = preload("res://ASSETS/SPRITES/UI/selectedMenu/resource/resourcePotrait_tree.png")
 
+## --- KOSTEN & ZEIT VARIABLEN ---
+@export_group("Production Costs (Base for 1 Unit)")
+## Warrior: 1 Food, 1 Iron
+@export var warrior_cost_food : int = 1
+@export var warrior_cost_iron : int = 1
+## Archer: 1 Food, 1 Wood
+@export var archer_cost_food : int = 1
+@export var archer_cost_wood : int = 1
+
+@export_group("Production Time (Seconds)")
+## Zeit für 1 Einheit (wird mit Menge multipliziert)
+@export var warrior_time_per_unit : float = 0.5 
+@export var archer_time_per_unit : float = 0.4
+
 func _ready():
 	setup_ui_signals()
 	connect_ui_mouse_detection(bottom_menu_root)
@@ -109,6 +134,8 @@ func _ready():
 			spawn_container = parent.get_node("Units")
 	
 	find_world_tilemap()
+	await get_tree().process_frame
+	init_player_spawn()
 
 func find_world_tilemap():
 	if world_gen.has_node("groundTileMap"):
@@ -121,31 +148,54 @@ func find_world_tilemap():
 				world_tilemap = child
 				break
 
+func init_player_spawn():
+	if world_gen.spawn_points.size() == 0:
+		return
+	
+	var spawn_16px = world_gen.spawn_points.pick_random()
+	my_base_grid_pos = spawn_16px / 2
+	
+	var rect_top_left = my_base_grid_pos - Vector2i(2, 2)
+	var rect_size = Vector2i(5, 5) 
+	allowed_build_rect = Rect2i(rect_top_left, rect_size)
+	
+	var cam = get_viewport().get_camera_2d()
+	if cam and cam.has_method("focus_position_max_zoom"):
+		var world_pos = building_tilemap.map_to_local(my_base_grid_pos)
+		cam.focus_position_max_zoom(world_pos)
+
 func connect_ui_mouse_detection(node: Node):
 	if node is Control:
-		node.mouse_entered.connect(func(): is_mouse_over_ui = true)
-		node.mouse_exited.connect(func(): is_mouse_over_ui = false)
+		if not node.mouse_entered.is_connected(_on_ui_mouse_entered):
+			node.mouse_entered.connect(_on_ui_mouse_entered)
+		if not node.mouse_exited.is_connected(_on_ui_mouse_exited):
+			node.mouse_exited.connect(_on_ui_mouse_exited)
+			
 	for child in node.get_children():
 		connect_ui_mouse_detection(child)
 
+func _on_ui_mouse_entered():
+	is_mouse_over_ui = true
+
+func _on_ui_mouse_exited():
+	is_mouse_over_ui = false
+
 func setup_ui_signals():
-	## Building Menus
 	menu_container.get_node("buildMenuBtn").pressed.connect(on_build_menu_btn_pressed)
 	building_menu_container.get_node("farmMenuBtn").pressed.connect(func(): switch_building_category("farm"))
 	building_menu_container.get_node("warMenuBtn").pressed.connect(func(): switch_building_category("war"))
-	building_menu_container.get_node("cancelMenuBtn").pressed.connect(on_cancel_menu_btn_pressed)
+	
+	building_menu_cancel_btn.pressed.connect(on_building_menu_close_pressed)
 	
 	farm_menu_container.get_node("farmBuildingBtn").pressed.connect(func(): start_building_mode(BUILDING_FARM, {}))
 	farm_menu_container.get_node("lumberjackBuildingBtn").pressed.connect(func(): start_building_mode(BUILDING_LUMBERJACK, {}))
 	war_menu_container.get_node("warBuildingBtn").pressed.connect(func(): start_building_mode(BUILDING_WARRIOR, {}))
 	war_menu_container.get_node("archerBuildingBtn").pressed.connect(func(): start_building_mode(BUILDING_ARCHER, {}))
 	
-	## Cancel Buttons
 	cancel_unit_menu_btn.pressed.connect(deselect_unit)
 	cancel_res_menu_btn.pressed.connect(deselect_resource)
 	cancel_building_menu_btn.pressed.connect(deselect_building)
 	
-	## Spawn Button
 	if building_spawn_btn_node.has_signal("spawn_clicked"):
 		building_spawn_btn_node.spawn_clicked.connect(on_unit_spawn_requested)
 
@@ -188,51 +238,46 @@ func _input(event: InputEvent):
 					handle_left_click(mouse_pos)
 			elif event.button_index == MOUSE_BUTTON_RIGHT:
 				if is_building_mode:
-					## Rechtsklick während Bauen -> Abbrechen
-					on_cancel_menu_btn_pressed() 
+					cancel_building_mode() 
 				else:
-					## Rechtsklick normal -> Unit bewegen etc.
 					handle_right_click(mouse_pos)
 	
 	if event is InputEventKey and event.pressed:
-		if event.keycode == KEY_F1:
-			spawn_warrior_at_mouse()
 		if event.keycode == KEY_X and selected_unit != null:
 			selected_unit.add_xp(50)
 
 ## --- CLICK & SELECTION ---
 
 func handle_left_click(mouse_pos: Vector2):
-	## Check Resource, Unit, Building...
-	var resource = world_gen.get_resource_at_position(mouse_pos)
-	if resource != null:
-		select_resource(resource)
-		return
+	## FIX: Zuerst Units prüfen, dann Gebäude, DANN ERST Ressourcen
 	
+	## 1. Unit Check (Priorität!)
 	var clicked_unit = get_unit_at_position(mouse_pos)
 	if clicked_unit != null:
 		select_unit(clicked_unit)
 		return
 	
+	## 2. Gebäude Check
 	var clicked_building = get_building_at_position(mouse_pos)
 	if clicked_building != null:
 		select_building(clicked_building)
 		return
 	
-	## --- FIX: Wenn wir nichts getroffen haben (leerer Boden) ---
+	## 3. Ressource Check (Niedrigste Priorität)
+	var resource = world_gen.get_resource_at_position(mouse_pos)
+	if resource != null:
+		select_resource(resource)
+		return
 	
-	## Wenn das Baumenü offen ist, wollen wir es NICHT schließen, nur weil man auf den Boden klickt.
 	if building_menu_container.visible:
 		return
 		
-	## Sonst alles abwählen (Menüs zu, Hauptmenü auf)
 	deselect_all()
 
 func deselect_all():
 	deselect_unit()
 	deselect_resource()
 	deselect_building()
-	
 	building_menu_container.visible = false
 	menu_container.visible = true
 
@@ -262,19 +307,22 @@ func deselect_unit():
 		selected_unit = null
 	hovering_unit = null
 	selected_unit_menu.visible = false
+	if !building_menu_container.visible:
+		menu_container.visible = true
 
 func show_selected_unit_ui(unit: UnitBase):
 	selected_unit_menu.visible = true
 	update_selected_unit_ui(unit)
 
 func update_selected_unit_ui(unit: UnitBase):
-	unit_name_label.text = unit.unit_name + " (Lvl " + str(unit.current_level) + ")"
+	unit_name_label.text = unit.unit_name + " " + str(unit.unit_amount)
 	health_text.text = str(int(unit.current_health)) + " / " + str(int(unit.max_health))
 	exp_text.text = str(unit.current_xp) + " / " + str(unit.xp_to_next_level)
 	health_bar.max_value = unit.max_health
 	health_bar.value = unit.current_health
 	exp_bar.max_value = unit.xp_to_next_level
 	exp_bar.value = unit.current_xp
+	
 	if unit.portrait_texture:
 		unit_portrait.texture = unit.portrait_texture
 
@@ -289,6 +337,8 @@ func select_resource(res_data: ResourceData):
 func deselect_resource():
 	selected_resource = null
 	selected_resource_menu.visible = false
+	if !building_menu_container.visible:
+		menu_container.visible = true
 
 func show_selected_resource_ui(res_data: ResourceData):
 	selected_resource_menu.visible = true
@@ -324,11 +374,9 @@ func select_building(building: UnitProductionBuilding):
 	selected_building = building
 	selected_building_menu.visible = true
 	
-	## Button Icon updaten
 	if building_spawn_btn_node.has_method("update_button"):
 		building_spawn_btn_node.update_button(building.unit_type)
 	
-	## WICHTIG: NUR UI-Signal verbinden
 	if not building.queue_changed.is_connected(update_building_queue_ui):
 		building.queue_changed.connect(update_building_queue_ui)
 		
@@ -336,51 +384,95 @@ func select_building(building: UnitProductionBuilding):
 
 func deselect_building():
 	if selected_building != null:
-		## WICHTIG: NUR UI-Signal trennen
 		if selected_building.queue_changed.is_connected(update_building_queue_ui):
 			selected_building.queue_changed.disconnect(update_building_queue_ui)
-		
 		selected_building = null
-	
 	selected_building_menu.visible = false
+	if !building_menu_container.visible:
+		menu_container.visible = true
 
-## --- BUILDING QUEUE ---
+## --- BUILDING QUEUE & COSTS ---
 
-func on_unit_spawn_requested(unit_type):
-	print("DEBUG: Spawn-Button gedrückt für ", unit_type)
-	if selected_building != null:
-		selected_building.add_to_queue()
-	else:
-		print("DEBUG: FEHLER - selected_building ist null!")
+func get_unit_cost(type: String, amount: int) -> Dictionary:
+	var cost = {}
+	if type == "Warrior":
+		cost["food"] = warrior_cost_food * amount
+		cost["iron"] = warrior_cost_iron * amount
+	elif type == "Archer":
+		cost["food"] = archer_cost_food * amount
+		cost["wood"] = archer_cost_wood * amount
+	return cost
+
+func get_unit_production_time(type: String, amount: int) -> float:
+	if type == "Warrior":
+		return warrior_time_per_unit * amount
+	elif type == "Archer":
+		return archer_time_per_unit * amount
+	return 1.0
+
+func on_unit_spawn_requested(unit_type, amount):
+	print("Spawn Anfrage: ", unit_type, " Menge: ", amount)
+	
+	if selected_building == null:
+		return
+		
+	var cost = get_unit_cost(unit_type, amount)
+	
+	if not has_resources(cost):
+		print("Nicht genug Ressourcen für ", amount, " ", unit_type)
+		return
+		
+	var time_cost = get_unit_production_time(unit_type, amount)
+	
+	pay_resources(cost)
+	selected_building.add_to_queue(unit_type, amount, time_cost)
+
+func _on_queue_item_cancel_requested(index):
+	if selected_building == null: return
+	
+	var removed_order = selected_building.remove_from_queue(index)
+	
+	if removed_order.is_empty():
+		return
+		
+	var refund_cost = get_unit_cost(removed_order["type"], removed_order["amount"])
+	
+	for type in refund_cost:
+		add_resource(type, refund_cost[type])
+		
+	print("Auftrag storniert. Refund: ", refund_cost)
 
 func update_building_queue_ui():
 	if selected_building == null: return
 	
-	## Alte Items löschen
 	for child in queue_first_slot.get_children(): child.queue_free()
 	for child in queue_container.get_children(): child.queue_free()
 	
 	var queue = selected_building.production_queue
 	
-	## Neue Items erstellen
 	for i in range(queue.size()):
-		var u_type = queue[i]
+		var order = queue[i]
+		var u_type = order["type"]
+		var u_amount = order["amount"]
 		
 		if spawn_item_scene:
 			var item = spawn_item_scene.instantiate()
 			
+			if item.has_signal("cancel_requested"):
+				item.cancel_requested.connect(_on_queue_item_cancel_requested)
+			
+			connect_ui_mouse_detection(item)
+			
 			if i == 0:
-				## Erstes Item -> in den großen Slot
 				queue_first_slot.add_child(item)
 				if item.has_method("setup"):
-					item.setup(u_type, 1)
+					item.setup(u_type, u_amount, i) 
 				if item.has_method("update_progress"):
 					item.update_progress(selected_building.get_progress_percentage())
 			else:
-				## Warteschlange -> in die HBox
 				queue_container.add_child(item)
 				if item.has_method("setup"):
-					item.setup(u_type, i + 1)
+					item.setup(u_type, u_amount, i) 
 		else:
 			print("FEHLER: spawn_item_scene im Inspector nicht zugewiesen!")
 
@@ -390,10 +482,10 @@ func update_building_queue_ui_progress_only():
 		if item.has_method("update_progress"):
 			item.update_progress(selected_building.get_progress_percentage())
 
-func on_production_finished(unit_type, spawn_pos):
-	spawn_unit(unit_type, spawn_pos)
+func on_production_finished(unit_type, amount, spawn_pos):
+	spawn_unit(unit_type, amount, spawn_pos)
 
-func spawn_unit(type, pos):
+func spawn_unit(type, amount, pos):
 	var new_unit = null
 	if type == "Warrior" and warrior_scene:
 		new_unit = warrior_scene.instantiate()
@@ -405,7 +497,18 @@ func spawn_unit(type, pos):
 	if new_unit:
 		new_unit.global_position = pos
 		spawn_container.add_child(new_unit)
-		print("Unit gespawnt: ", type)
+		
+		new_unit.unit_name = type 
+		
+		if type == "Warrior":
+			new_unit.portrait_texture = portrait_warrior
+		elif type == "Archer":
+			new_unit.portrait_texture = portrait_archer
+		
+		if new_unit.has_method("init_amount"):
+			new_unit.init_amount(amount)
+			
+		print("Unit gespawnt: ", type, " x", amount)
 
 ## --- BUILDING PLACEMENT ---
 
@@ -417,9 +520,6 @@ func start_building_mode(building_type: int, cost: Dictionary):
 	current_building_type = building_type
 	current_building_cost = cost
 	deselect_all()
-	
-	## FIX: Baumenü explizit offen lassen, wenn wir in den Bau-Modus gehen
-	## deselect_all schließt es normalerweise, daher öffnen wir es wieder
 	building_menu_container.visible = true
 	menu_container.visible = false
 
@@ -429,7 +529,20 @@ func cancel_building_mode():
 	current_building_type = -1
 	queue_redraw()
 
+func on_building_menu_close_pressed():
+	cancel_building_mode()
+	building_menu_container.visible = false
+	selected_unit_menu.visible = false
+	selected_resource_menu.visible = false
+	selected_building_menu.visible = false
+	menu_container.visible = true 
+
 func is_buildable(building_grid_pos: Vector2i) -> bool:
+	if not allowed_build_rect.has_point(building_grid_pos):
+		return false
+	if building_grid_pos == my_base_grid_pos:
+		return false
+
 	var base_world_x = building_grid_pos.x * 2
 	var base_world_y = building_grid_pos.y * 2
 	for dx in range(2):
@@ -437,6 +550,7 @@ func is_buildable(building_grid_pos: Vector2i) -> bool:
 			var check_pos = Vector2i(base_world_x + dx, base_world_y + dy)
 			if world_gen.water_cells.has(check_pos): return false
 			if world_gen.resource_data_map.has(check_pos): return false
+	
 	if building_tilemap.get_cell_source_id(building_grid_pos) != -1: return false
 	return true
 
@@ -478,13 +592,6 @@ func try_place_building(mouse_pos: Vector2):
 	
 	pay_resources(current_building_cost)
 	last_preview_pos = Vector2i(-1, -1)
-	
-	## OPTIONAL: Willst du nach dem Bauen den Modus beenden?
-	## Wenn ja, auskommentieren lassen. Wenn man mehrere Gebäude bauen will (wie in AOE Farmen), drin lassen.
-	## Wenn du willst, dass man danach aufhört:
-	# cancel_building_mode()
-	# building_menu_container.visible = true ## Menü offen lassen
-	# menu_container.visible = false
 
 func on_build_menu_btn_pressed():
 	menu_container.visible = false
@@ -495,11 +602,6 @@ func on_build_menu_btn_pressed():
 
 func on_cancel_menu_btn_pressed():
 	cancel_building_mode()
-	building_menu_container.visible = false
-	selected_unit_menu.visible = false
-	selected_resource_menu.visible = false
-	selected_building_menu.visible = false
-	menu_container.visible = true
 
 ## --- HELPERS ---
 
@@ -594,3 +696,6 @@ func spawn_warrior_at_mouse():
 	var new_warrior = warrior_scene.instantiate()
 	new_warrior.global_position = get_global_mouse_position()
 	spawn_container.add_child(new_warrior)
+	new_warrior.init_amount(10) ## Debug-Spawn mit 10
+	new_warrior.unit_name = "Warrior"
+	new_warrior.portrait_texture = portrait_warrior
