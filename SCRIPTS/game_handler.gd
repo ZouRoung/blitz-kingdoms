@@ -77,7 +77,6 @@ extends Node2D
 ## --- WORLD REFERENCES ---
 @onready var world_gen : Node2D = get_parent().get_node("worldGen")
 @onready var building_tilemap : TileMapLayer = world_gen.get_node("buildingTileMap")
-## NEU: Wichtig für korrekte Positionsberechnung von Ressourcen
 @onready var resource_tilemap : TileMapLayer = world_gen.get_node("resourceTileMap")
 @onready var production_buildings_container : Node2D = get_parent().get_node("production_buildings")
 
@@ -269,17 +268,18 @@ func _input(event: InputEvent):
 			selected_unit.add_xp(50)
 
 func handle_right_click_input(mouse_pos: Vector2):
+	## 1. Wenn Baumodus aktiv -> Abbrechen, aber Menü offen lassen
 	if is_building_mode:
 		cancel_building_mode()
-		if current_building_type == -1:
-			on_building_menu_close_pressed()
 		return
 		
+	## 2. Wenn irgendein Menü offen ist (aber KEIN Baumodus aktiv) -> Schließen
 	if building_menu_container.visible or selected_building_menu.visible:
 		on_building_menu_close_pressed()
 		deselect_all()
 		return
 		
+	## 3. Normaler Rechtsklick (Einheiten bewegen)
 	handle_right_click(mouse_pos)
 
 ## --- CLICK & SELECTION ---
@@ -331,7 +331,7 @@ func select_unit(unit: UnitBase):
 	
 	if not unit.inventory_changed.is_connected(update_unit_inventory_ui):
 		unit.inventory_changed.connect(update_unit_inventory_ui)
-		
+	
 	show_selected_unit_ui(unit)
 
 func deselect_unit():
@@ -586,6 +586,7 @@ func spawn_unit(type, amount, pos):
 		if new_unit.has_method("init_amount"):
 			new_unit.init_amount(amount)
 			
+		## WICHTIG: Signale permanent verbinden!
 		if not new_unit.arrived_at_base.is_connected(_on_unit_arrived_at_base):
 			new_unit.arrived_at_base.connect(_on_unit_arrived_at_base)
 		
@@ -716,8 +717,8 @@ func handle_right_click(mouse_pos: Vector2):
 		var local_mouse = building_tilemap.to_local(mouse_pos)
 		var grid_pos_32 = building_tilemap.local_to_map(local_mouse)
 		
-		var dist_to_base = Vector2(grid_pos_32).distance_to(Vector2(my_base_grid_pos))
-		if dist_to_base < 2.0:
+		## FIX: Strenger Vergleich mit 0.1 (exakt draufklicken)
+		if Vector2(grid_pos_32) == Vector2(my_base_grid_pos):
 			return_resources_to_base(selected_unit)
 			return
 			

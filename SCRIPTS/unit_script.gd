@@ -17,7 +17,7 @@ var unit_amount : int = 1
 @export var friction : float = 600.0
 @export var stop_distance : float = 2.0
 
-@export_group("Speed Penalties")
+## Geschwindigkeits-Faktoren
 @export var speed_penalty_per_100_troops : float = 0.05 
 @export var speed_penalty_per_100_resource : float = 0.1 
 @export var min_speed_factor : float = 0.2 
@@ -26,11 +26,12 @@ var unit_amount : int = 1
 @export var farm_interval : float = 5.0 
 @export var base_farm_amount : int = 10 
 var farm_amount : int = 10 
-@export var farm_range : float = 4.0 
+## HIER: Radius auf 10.0 verkleinert
+@export var farm_range : float = 10.0 
 
 @export_group("Separation")
-@export var separation_radius : float = 12.0 
-@export var separation_force : float = 150.0 
+@export var separation_radius : float = 6.0 
+@export var separation_force : float = 150.0
 
 @export_group("References")
 @export var sprite_container : Node2D
@@ -116,16 +117,17 @@ func update_movement(delta: float):
 	var desired_velocity = Vector2.ZERO
 	var current_speed = get_current_speed()
 	
-	if target_resource_node != null and distance_to_target > stop_distance:
-		is_moving = true
-		if is_farming:
-			is_farming = false
-	
 	if distance_to_target > stop_distance:
 		var direction = (target_position - global_position).normalized()
 		desired_velocity = direction * current_speed
 		is_moving = true
+		
+		## Wenn wir farmen aber uns bewegen müssen (weil geschubst oder noch nicht da):
+		## Pausieren wir nur. Der harte Abbruch passiert in update_farming.
+		if is_farming:
+			is_farming = false
 	else:
+		## ANGEKOMMEN
 		is_moving = false
 		desired_velocity = Vector2.ZERO
 		target_position = global_position 
@@ -143,6 +145,7 @@ func update_movement(delta: float):
 			target_pickup_node = null
 	
 	var separation = get_separation_vector()
+	## Separation ist immer aktiv!
 	if is_moving: desired_velocity += separation
 	else: desired_velocity = separation
 	
@@ -160,6 +163,9 @@ func get_separation_vector() -> Vector2:
 	
 	for neighbor in parent.get_children():
 		if neighbor == self or not neighbor is UnitBase: continue
+		
+		## HIER GEÄNDERT: Wir ignorieren niemanden mehr. 
+		## Auch wenn jemand farmt, wird er weggeschoben, wenn es zu eng ist.
 		
 		var dist = global_position.distance_to(neighbor.global_position)
 		if dist < 0.1:
@@ -183,7 +189,6 @@ func get_separation_vector() -> Vector2:
 func set_farm_target(res_data):
 	target_resource_node = res_data
 	target_pickup_node = null 
-	## Wichtig: target_position ist jetzt die Position der Ressource (vom GameHandler gesetzt)
 	farm_target_global_position = target_position
 
 func set_pickup_target(item_node):
@@ -196,13 +201,19 @@ func set_pickup_target(item_node):
 func start_farming():
 	if target_resource_node == null: return
 	
+	## EXKLUSIVES FARMEN: Prüfen, ob jemand anderes farmt
 	if target_resource_node.current_farmer != null and target_resource_node.current_farmer != self:
 		if is_instance_valid(target_resource_node.current_farmer):
 			var old_farmer = target_resource_node.current_farmer
+			
+			## Alten Farmer stoppen
 			if old_farmer.has_method("stop_farming"):
 				old_farmer.stop_farming()
+			
+			## WICHTIG: Wir nutzen die Variable 'old_farmer'
 			old_farmer.target_resource_node = null
 	
+	## Uns eintragen
 	target_resource_node.current_farmer = self
 	
 	is_farming = true
@@ -225,11 +236,11 @@ func update_farming(delta):
 		target_resource_node = null 
 		return
 
-	## DISTANZ CHECK: Hier prüfen wir, ob wir weggeschoben wurden.
+	## DISTANZ CHECK: Wenn wir > farm_range (10.0) entfernt sind -> ABBRUCH!
 	if global_position.distance_to(farm_target_global_position) > farm_range:
-		print(unit_name, " zu weit weg. Farming abgebrochen.")
+		print(unit_name, " wurde weggeschoben. Farming gestoppt.")
 		stop_farming()
-		target_resource_node = null 
+		target_resource_node = null ## Ziel vergessen!
 		return
 
 	farm_timer += delta
@@ -317,6 +328,7 @@ func update_sprite_direction():
 func set_target(new_target: Vector2):
 	target_position = new_target
 	
+	## Wenn manuell: Alles stoppen und vergessen
 	is_farming = false
 	if target_resource_node != null:
 		if target_resource_node.current_farmer == self:
