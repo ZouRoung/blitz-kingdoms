@@ -95,3 +95,8 @@ func get_progress_percentage() -> float:
 	if not is_producing or current_target_time == 0:
 		return 0.0
 	return (current_production_time / current_target_time) * 100.0
+
+func get_time_left() -> float:
+	if not is_producing:
+		return 0.0
+	return max(0.0, current_target_time - current_production_time)

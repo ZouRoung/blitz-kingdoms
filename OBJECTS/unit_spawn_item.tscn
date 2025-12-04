@@ -61,6 +61,22 @@ horizontal_alignment = 1
 vertical_alignment = 1
 clip_text = true
 
+[node name="unitProgressTimer" type="Label" parent="."]
+modulate = Color(1, 1, 1, 0.43137255)
+layout_mode = 0
+offset_left = 2.0
+offset_top = 90.0
+offset_right = 90.40914
+offset_bottom = 118.0
+scale = Vector2(0.95012796, 0.95012796)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 20
+text = "01:50"
+horizontal_alignment = 1
+vertical_alignment = 1
+clip_text = true
+
 [node name="cancelButton" type="TextureButton" parent="."]
 layout_mode = 0
 offset_right = 44.0

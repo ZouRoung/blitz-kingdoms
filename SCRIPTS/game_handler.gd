@@ -467,8 +467,13 @@ func update_building_queue_ui():
 				queue_first_slot.add_child(item)
 				if item.has_method("setup"):
 					item.setup(u_type, u_amount, i) 
+				
+				## HIER: Initiales Update für Progress und Timer
 				if item.has_method("update_progress"):
 					item.update_progress(selected_building.get_progress_percentage())
+				if item.has_method("update_timer_display"):
+					item.update_timer_display(selected_building.get_time_left())
+					
 			else:
 				queue_container.add_child(item)
 				if item.has_method("setup"):
@@ -479,8 +484,13 @@ func update_building_queue_ui():
 func update_building_queue_ui_progress_only():
 	if queue_first_slot.get_child_count() > 0:
 		var item = queue_first_slot.get_child(0)
+		
+		## Progress Bar Update
 		if item.has_method("update_progress"):
 			item.update_progress(selected_building.get_progress_percentage())
+			
+		if item.has_method("update_timer_display"):
+			item.update_timer_display(selected_building.get_time_left())
 
 func on_production_finished(unit_type, amount, spawn_pos):
 	spawn_unit(unit_type, amount, spawn_pos)
