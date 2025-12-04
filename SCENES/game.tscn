@@ -1,9 +1,10 @@
-[gd_scene load_steps=5 format=3 uid="uid://drugflygomoy3"]
+[gd_scene load_steps=6 format=3 uid="uid://drugflygomoy3"]
 
 [ext_resource type="PackedScene" uid="uid://c0fi1s61yiopx" path="res://OBJECTS/world_gen.tscn" id="1_2sn7y"]
 [ext_resource type="PackedScene" uid="uid://yopmjcm1w1pd" path="res://OBJECTS/game_handler.tscn" id="2_w4tjv"]
 [ext_resource type="PackedScene" uid="uid://b5khnrbjmxvsn" path="res://OBJECTS/ui.tscn" id="3_l2rif"]
 [ext_resource type="PackedScene" uid="uid://dpypx0tmy0vts" path="res://OBJECTS/item_drop.tscn" id="3_rmssh"]
+[ext_resource type="PackedScene" uid="uid://i5ciixhy24ya" path="res://OBJECTS/dayNightTime_handler.tscn" id="6_ggca4"]
 
 [node name="game" type="Node2D"]
 
@@ -17,5 +18,7 @@ spawn_container = NodePath("../Entities")
 
 [node name="Entities" type="Node2D" parent="."]
 y_sort_enabled = true
+
+[node name="dayNightTime_handler" parent="." instance=ExtResource("6_ggca4")]
 
 [node name="ui" parent="." instance=ExtResource("3_l2rif")]

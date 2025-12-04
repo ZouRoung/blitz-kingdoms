@@ -4,7 +4,7 @@
 [ext_resource type="Script" uid="uid://c31ju4v2soi6g" path="res://SCRIPTS/item_drop.gd" id="1_grx0w"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_grx0w"]
-size = Vector2(6, 6)
+size = Vector2(6, 7.865476)
 
 [sub_resource type="Animation" id="Animation_cxkyq"]
 length = 0.001
@@ -92,15 +92,16 @@ _data = {
 }
 
 [node name="item_drop" type="StaticBody2D"]
-y_sort_enabled = true
 script = ExtResource("1_grx0w")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
-position = Vector2(0, -1)
-scale = Vector2(0.8221189, 0.8221189)
+position = Vector2(0, 2.9999998)
+scale = Vector2(0.8221189, 0.78211826)
 shape = SubResource("RectangleShape2D_grx0w")
 
 [node name="node" type="Node2D" parent="."]
+y_sort_enabled = true
+position = Vector2(0, 3)
 
 [node name="basic" type="Node2D" parent="node"]
 

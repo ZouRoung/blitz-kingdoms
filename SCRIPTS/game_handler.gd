@@ -96,7 +96,7 @@ var allowed_build_rect : Rect2i
 
 ## --- TIME SYSTEM ---
 var time_minutes : int = 0
-var time_hours : int = 8 
+var time_hours : int = 12 
 var time_accumulator : float = 0.0
 const REAL_SECONDS_PER_GAME_15MIN = 30.0
 

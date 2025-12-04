@@ -1,0 +1,49 @@
+[gd_scene load_steps=5 format=3 uid="uid://i5ciixhy24ya"]
+
+[ext_resource type="Script" uid="uid://brnr813cm5tc1" path="res://SCRIPTS/day_night_time_handler.gd" id="1_x6n7f"]
+
+[sub_resource type="Animation" id="Animation_x6n7f"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:color")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Color(0.12900001, 0.18600005, 0.3, 0.78431374)]
+}
+
+[sub_resource type="Animation" id="Animation_wvnnt"]
+resource_name = "daytime"
+length = 24.0
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:color")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 4, 6.0000005, 9, 18, 24),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1),
+"update": 0,
+"values": [Color(0.12900001, 0.18600005, 0.3, 0.78431374), Color(0.12900001, 0.18600005, 0.3, 0.78431374), Color(0.85206544, 0.49797618, 0.2832213, 0.68235296), Color(1, 1, 1, 1), Color(1, 1, 1, 1), Color(0.12900001, 0.18600005, 0.3, 0.78431374)]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_x6n7f"]
+_data = {
+&"RESET": SubResource("Animation_x6n7f"),
+&"daytime": SubResource("Animation_wvnnt")
+}
+
+[node name="dayNightTime_handler" type="CanvasModulate"]
+color = Color(0.12900001, 0.18600005, 0.3, 0.78431374)
+script = ExtResource("1_x6n7f")
+
+[node name="ani" type="AnimationPlayer" parent="."]
+libraries = {
+&"": SubResource("AnimationLibrary_x6n7f")
+}
