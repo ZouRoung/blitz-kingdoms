@@ -319,7 +319,13 @@ func update_animation():
 	if is_moving:
 		animation_player.play("walk")
 	else:
-		animation_player.play("idle")
+		if is_farming:
+			if animation_player.has_animation("farming"):
+				animation_player.play("farming")
+			else:
+				animation_player.play("idle")
+		else:
+			animation_player.play("idle")
 
 func update_sprite_direction():
 	if abs(current_velocity.x) > 1.0:
