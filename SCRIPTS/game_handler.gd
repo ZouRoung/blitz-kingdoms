@@ -10,9 +10,9 @@ extends Node2D
 @export var warrior_scene : PackedScene
 @export var archer_scene : PackedScene 
 @export var spawn_item_scene : PackedScene 
+@export var item_drop_scene : PackedScene ## WICHTIG: Hier item_drop.tscn zuweisen!
 @export var spawn_container : Node2D
 
-## --- NEU: PORTRAIT REFERENZEN ---
 @export_group("Unit Assets")
 @export var portrait_warrior : Texture2D 
 @export var portrait_archer : Texture2D  
@@ -32,7 +32,7 @@ extends Node2D
 @onready var building_menu_container = bottom_menu_root.get_node("buildingMenu")
 @onready var farm_menu_container = building_menu_container.get_node("farmMenu")
 @onready var war_menu_container = building_menu_container.get_node("warMenu")
-## Referenz auf den Zurück-Button im Building Menü (das "X" oder "Cancel" dort)
+## Referenz auf den Zurück-Button im Building Menü
 @onready var building_menu_cancel_btn = building_menu_container.get_node("cancelMenuBtn")
 
 ## --- UI REFERENCES (SELECTED UNIT MENU) ---
@@ -44,6 +44,19 @@ extends Node2D
 @onready var exp_text = selected_unit_menu.get_node("expText")
 @onready var exp_bar = selected_unit_menu.get_node("expbar")
 @onready var cancel_unit_menu_btn = selected_unit_menu.get_node("cancelSelectedUnitMenu")
+
+## Inventar Labels & Buttons
+@onready var inv_wood_label = selected_unit_menu.get_node("inv/woodCounter")
+@onready var inv_stone_label = selected_unit_menu.get_node("inv/stoneCounter")
+@onready var inv_iron_label = selected_unit_menu.get_node("inv/ironCounter")
+@onready var inv_gold_label = selected_unit_menu.get_node("inv/goldCounter")
+@onready var inv_food_label = selected_unit_menu.get_node("inv/foodCounter")
+
+@onready var btn_drop_wood = selected_unit_menu.get_node("inv/buttonDrop_wood")
+@onready var btn_drop_stone = selected_unit_menu.get_node("inv/buttonDrop_stone")
+@onready var btn_drop_iron = selected_unit_menu.get_node("inv/buttonDrop_iron")
+@onready var btn_drop_gold = selected_unit_menu.get_node("inv/buttonDrop_gold")
+@onready var btn_drop_food = selected_unit_menu.get_node("inv/buttonDrop_food")
 
 ## --- UI REFERENCES (SELECTED RESOURCE MENU) ---
 @onready var selected_resource_menu = bottom_menu_root.get_node("selectedResourceMenu")
@@ -64,6 +77,8 @@ extends Node2D
 ## --- WORLD REFERENCES ---
 @onready var world_gen : Node2D = get_parent().get_node("worldGen")
 @onready var building_tilemap : TileMapLayer = world_gen.get_node("buildingTileMap")
+## NEU: Wichtig für korrekte Positionsberechnung von Ressourcen
+@onready var resource_tilemap : TileMapLayer = world_gen.get_node("resourceTileMap")
 @onready var production_buildings_container : Node2D = get_parent().get_node("production_buildings")
 
 var world_tilemap : TileMapLayer = null
@@ -108,15 +123,12 @@ const RES_PORTRAIT_TREE = preload("res://ASSETS/SPRITES/UI/selectedMenu/resource
 
 ## --- KOSTEN & ZEIT VARIABLEN ---
 @export_group("Production Costs (Base for 1 Unit)")
-## Warrior: 1 Food, 1 Iron
 @export var warrior_cost_food : int = 1
 @export var warrior_cost_iron : int = 1
-## Archer: 1 Food, 1 Wood
 @export var archer_cost_food : int = 1
 @export var archer_cost_wood : int = 1
 
 @export_group("Production Time (Seconds)")
-## Zeit für 1 Einheit (wird mit Menge multipliziert)
 @export var warrior_time_per_unit : float = 0.5 
 @export var archer_time_per_unit : float = 0.4
 
@@ -147,6 +159,9 @@ func find_world_tilemap():
 			if child is TileMapLayer and child != building_tilemap:
 				world_tilemap = child
 				break
+	
+	if world_gen.has_node("resourceTileMap"):
+		resource_tilemap = world_gen.get_node("resourceTileMap")
 
 func init_player_spawn():
 	if world_gen.spawn_points.size() == 0:
@@ -184,7 +199,6 @@ func setup_ui_signals():
 	menu_container.get_node("buildMenuBtn").pressed.connect(on_build_menu_btn_pressed)
 	building_menu_container.get_node("farmMenuBtn").pressed.connect(func(): switch_building_category("farm"))
 	building_menu_container.get_node("warMenuBtn").pressed.connect(func(): switch_building_category("war"))
-	
 	building_menu_cancel_btn.pressed.connect(on_building_menu_close_pressed)
 	
 	farm_menu_container.get_node("farmBuildingBtn").pressed.connect(func(): start_building_mode(BUILDING_FARM, {}))
@@ -198,6 +212,13 @@ func setup_ui_signals():
 	
 	if building_spawn_btn_node.has_signal("spawn_clicked"):
 		building_spawn_btn_node.spawn_clicked.connect(on_unit_spawn_requested)
+		
+	## Drop Buttons verbinden
+	btn_drop_wood.pressed.connect(func(): on_drop_btn_pressed("wood"))
+	btn_drop_stone.pressed.connect(func(): on_drop_btn_pressed("stone"))
+	btn_drop_iron.pressed.connect(func(): on_drop_btn_pressed("iron"))
+	btn_drop_gold.pressed.connect(func(): on_drop_btn_pressed("gold"))
+	btn_drop_food.pressed.connect(func(): on_drop_btn_pressed("food"))
 
 func _process(delta: float):
 	update_hover_detection()
@@ -205,6 +226,10 @@ func _process(delta: float):
 	
 	if selected_building != null and selected_building.is_producing:
 		update_building_queue_ui_progress_only()
+	
+	## Live Update für Resource UI während Farming
+	if selected_resource != null and selected_resource_menu.visible:
+		update_selected_resource_ui(selected_resource)
 	
 	if is_building_mode:
 		update_building_preview()
@@ -237,33 +262,39 @@ func _input(event: InputEvent):
 				elif not is_mouse_over_ui:
 					handle_left_click(mouse_pos)
 			elif event.button_index == MOUSE_BUTTON_RIGHT:
-				if is_building_mode:
-					cancel_building_mode() 
-				else:
-					handle_right_click(mouse_pos)
+				handle_right_click_input(mouse_pos)
 	
 	if event is InputEventKey and event.pressed:
 		if event.keycode == KEY_X and selected_unit != null:
 			selected_unit.add_xp(50)
 
+func handle_right_click_input(mouse_pos: Vector2):
+	if is_building_mode:
+		cancel_building_mode()
+		if current_building_type == -1:
+			on_building_menu_close_pressed()
+		return
+		
+	if building_menu_container.visible or selected_building_menu.visible:
+		on_building_menu_close_pressed()
+		deselect_all()
+		return
+		
+	handle_right_click(mouse_pos)
+
 ## --- CLICK & SELECTION ---
 
 func handle_left_click(mouse_pos: Vector2):
-	## FIX: Zuerst Units prüfen, dann Gebäude, DANN ERST Ressourcen
-	
-	## 1. Unit Check (Priorität!)
 	var clicked_unit = get_unit_at_position(mouse_pos)
 	if clicked_unit != null:
 		select_unit(clicked_unit)
 		return
 	
-	## 2. Gebäude Check
 	var clicked_building = get_building_at_position(mouse_pos)
 	if clicked_building != null:
 		select_building(clicked_building)
 		return
 	
-	## 3. Ressource Check (Niedrigste Priorität)
 	var resource = world_gen.get_resource_at_position(mouse_pos)
 	if resource != null:
 		select_resource(resource)
@@ -297,12 +328,20 @@ func select_unit(unit: UnitBase):
 	highlight_selected_unit(unit)
 	if not unit.stats_changed.is_connected(update_selected_unit_ui):
 		unit.stats_changed.connect(update_selected_unit_ui)
+	
+	if not unit.inventory_changed.is_connected(update_unit_inventory_ui):
+		unit.inventory_changed.connect(update_unit_inventory_ui)
+		
 	show_selected_unit_ui(unit)
 
 func deselect_unit():
 	if selected_unit != null:
 		if selected_unit.stats_changed.is_connected(update_selected_unit_ui):
 			selected_unit.stats_changed.disconnect(update_selected_unit_ui)
+		
+		if selected_unit.inventory_changed.is_connected(update_unit_inventory_ui):
+			selected_unit.inventory_changed.disconnect(update_unit_inventory_ui)
+			
 		unhighlight_selected_unit(selected_unit)
 		selected_unit = null
 	hovering_unit = null
@@ -313,6 +352,7 @@ func deselect_unit():
 func show_selected_unit_ui(unit: UnitBase):
 	selected_unit_menu.visible = true
 	update_selected_unit_ui(unit)
+	update_unit_inventory_ui(unit)
 
 func update_selected_unit_ui(unit: UnitBase):
 	unit_name_label.text = unit.unit_name + " " + str(unit.unit_amount)
@@ -325,6 +365,36 @@ func update_selected_unit_ui(unit: UnitBase):
 	
 	if unit.portrait_texture:
 		unit_portrait.texture = unit.portrait_texture
+
+func update_unit_inventory_ui(unit: UnitBase):
+	inv_wood_label.text = str(unit.inventory.get("wood", 0))
+	inv_stone_label.text = str(unit.inventory.get("stone", 0))
+	inv_iron_label.text = str(unit.inventory.get("iron", 0))
+	inv_gold_label.text = str(unit.inventory.get("gold", 0))
+	inv_food_label.text = str(unit.inventory.get("food", 0))
+
+func on_drop_btn_pressed(type: String):
+	if selected_unit != null:
+		selected_unit.drop_resource(type)
+
+func spawn_item_drop(type: String, amount: int, pos: Vector2):
+	if item_drop_scene == null:
+		print("FEHLER: Item Drop Scene nicht zugewiesen!")
+		return
+		
+	var drop = item_drop_scene.instantiate()
+	drop.global_position = pos
+	
+	var content = {}
+	content[type] = amount
+	
+	if drop.has_method("setup"):
+		drop.setup(content, pos)
+		
+	if spawn_container:
+		spawn_container.add_child(drop)
+	else:
+		get_parent().add_child(drop)
 
 ## --- RESOURCE SELECTION ---
 
@@ -342,10 +412,7 @@ func deselect_resource():
 
 func show_selected_resource_ui(res_data: ResourceData):
 	selected_resource_menu.visible = true
-	res_name_label.text = res_data.resource_type.capitalize()
-	res_health_bar.max_value = res_data.max_supply
-	res_health_bar.value = res_data.current_supply
-	res_health_value_label.text = str(res_data.current_supply) + "/" + str(res_data.max_supply)
+	update_selected_resource_ui(res_data)
 	
 	var texture_to_load = null
 	match res_data.resource_type:
@@ -356,6 +423,12 @@ func show_selected_resource_ui(res_data: ResourceData):
 		"berry": texture_to_load = RES_PORTRAIT_BERRY
 	if texture_to_load:
 		res_portrait.texture = texture_to_load
+
+func update_selected_resource_ui(res_data: ResourceData):
+	res_name_label.text = res_data.resource_type.capitalize()
+	res_health_bar.max_value = res_data.max_supply
+	res_health_bar.value = res_data.current_supply
+	res_health_value_label.text = str(res_data.current_supply) + "/" + str(res_data.max_supply)
 
 ## --- BUILDING SELECTION ---
 
@@ -467,8 +540,6 @@ func update_building_queue_ui():
 				queue_first_slot.add_child(item)
 				if item.has_method("setup"):
 					item.setup(u_type, u_amount, i) 
-				
-				## HIER: Initiales Update für Progress und Timer
 				if item.has_method("update_progress"):
 					item.update_progress(selected_building.get_progress_percentage())
 				if item.has_method("update_timer_display"):
@@ -484,11 +555,8 @@ func update_building_queue_ui():
 func update_building_queue_ui_progress_only():
 	if queue_first_slot.get_child_count() > 0:
 		var item = queue_first_slot.get_child(0)
-		
-		## Progress Bar Update
 		if item.has_method("update_progress"):
 			item.update_progress(selected_building.get_progress_percentage())
-			
 		if item.has_method("update_timer_display"):
 			item.update_timer_display(selected_building.get_time_left())
 
@@ -517,6 +585,12 @@ func spawn_unit(type, amount, pos):
 		
 		if new_unit.has_method("init_amount"):
 			new_unit.init_amount(amount)
+			
+		if not new_unit.arrived_at_base.is_connected(_on_unit_arrived_at_base):
+			new_unit.arrived_at_base.connect(_on_unit_arrived_at_base)
+		
+		if not new_unit.arrived_at_pickup.is_connected(_on_unit_arrived_at_pickup):
+			new_unit.arrived_at_pickup.connect(_on_unit_arrived_at_pickup)
 			
 		print("Unit gespawnt: ", type, " x", amount)
 
@@ -613,7 +687,42 @@ func on_build_menu_btn_pressed():
 func on_cancel_menu_btn_pressed():
 	cancel_building_mode()
 
-## --- HELPERS ---
+## --- HELPERS & MOVEMENT ---
+
+func handle_right_click(mouse_pos: Vector2):
+	if selected_unit != null:
+		## 1. Item Drop?
+		var drop = get_item_drop_at_position(mouse_pos)
+		if drop != null:
+			collect_item_drop(selected_unit, drop)
+			return
+			
+		## 2. Ressource?
+		var resource = world_gen.get_resource_at_position(mouse_pos)
+		if resource != null:
+			var target_pos = Vector2.ZERO
+			if resource_tilemap:
+				target_pos = resource_tilemap.to_global(resource_tilemap.map_to_local(resource.world_position))
+			else:
+				var x = (resource.world_position.x * 16) + 8
+				var y = (resource.world_position.y * 16) + 8
+				target_pos = Vector2(x, y)
+				
+			selected_unit.set_target(target_pos)
+			selected_unit.set_farm_target(resource)
+			return
+			
+		## 3. Basis?
+		var local_mouse = building_tilemap.to_local(mouse_pos)
+		var grid_pos_32 = building_tilemap.local_to_map(local_mouse)
+		
+		var dist_to_base = Vector2(grid_pos_32).distance_to(Vector2(my_base_grid_pos))
+		if dist_to_base < 2.0:
+			return_resources_to_base(selected_unit)
+			return
+			
+		## 4. Normal Move
+		selected_unit.set_target(mouse_pos)
 
 func get_unit_at_position(pos: Vector2) -> UnitBase:
 	var space_state = get_world_2d().direct_space_state
@@ -624,6 +733,48 @@ func get_unit_at_position(pos: Vector2) -> UnitBase:
 		var collider = result[0].collider
 		if collider is UnitBase: return collider
 	return null
+
+func get_item_drop_at_position(pos: Vector2) -> Node2D:
+	var space_state = get_world_2d().direct_space_state
+	var query = PhysicsPointQueryParameters2D.new()
+	query.position = pos
+	query.collide_with_bodies = true
+	query.collide_with_areas = true
+	
+	var result = space_state.intersect_point(query, 1)
+	
+	if result.size() > 0:
+		var collider = result[0].collider
+		if collider is ItemDrop or collider.has_method("pick_up"):
+			return collider
+			
+	return null
+
+func collect_item_drop(unit: UnitBase, drop: Node2D):
+	unit.set_target(drop.global_position)
+	unit.set_pickup_target(drop)
+
+func _perform_pickup(unit: UnitBase, drop: Node2D):
+	if drop == null: return
+	var content = drop.get_content()
+	for type in content:
+		unit.add_resource_from_drop(type, content[type])
+	drop.pick_up()
+
+func _on_unit_arrived_at_pickup(unit: UnitBase, drop_item):
+	if drop_item != null:
+		_perform_pickup(unit, drop_item)
+
+func return_resources_to_base(unit: UnitBase):
+	var base_pos = building_tilemap.to_global(building_tilemap.map_to_local(my_base_grid_pos))
+	unit.set_target(base_pos)
+	unit.is_delivering_resources = true
+
+func _on_unit_arrived_at_base(unit: UnitBase):
+	var dropped = unit.clear_inventory()
+	for type in dropped:
+		add_resource(type, dropped[type])
+	print("Resourcen abgeliefert: ", dropped)
 
 func update_hover_detection():
 	if is_building_mode: return
@@ -649,9 +800,6 @@ func highlight_selected_unit(unit: UnitBase):
 func unhighlight_selected_unit(unit: UnitBase):
 	var sprite = unit.get_node("unit")
 	if sprite: sprite.modulate = Color.WHITE
-
-func handle_right_click(mouse_pos: Vector2):
-	if selected_unit != null: selected_unit.set_target(mouse_pos)
 
 func process_time_system(delta: float):
 	time_accumulator += delta

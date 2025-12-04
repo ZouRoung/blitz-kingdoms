@@ -1,4 +1,4 @@
-[gd_scene load_steps=45 format=3 uid="uid://b5khnrbjmxvsn"]
+[gd_scene load_steps=52 format=3 uid="uid://b5khnrbjmxvsn"]
 
 [ext_resource type="Texture2D" uid="uid://cbqx34dmu8v4l" path="res://ASSETS/SPRITES/UI/topbar/topbar.png" id="2_wug7n"]
 [ext_resource type="Texture2D" uid="uid://8ftejx61stwf" path="res://ASSETS/SPRITES/UI/topbar/topbarTimer.png" id="3_b2kkc"]
@@ -38,9 +38,16 @@
 [ext_resource type="Texture2D" uid="uid://vxa25tyw14op" path="res://ASSETS/SPRITES/UI/selectedMenu/progressbar_over.png" id="35_qjv4d"]
 [ext_resource type="Texture2D" uid="uid://c2oie0dxr6o4q" path="res://ASSETS/SPRITES/UI/selectedMenu/progressbar_health_progress.png" id="36_qjv4d"]
 [ext_resource type="Texture2D" uid="uid://c4dgw41aiw5il" path="res://ASSETS/SPRITES/UI/selectedMenu/progressbar_exp_progress.png" id="38_lciwa"]
+[ext_resource type="Texture2D" uid="uid://caecglj07fwnq" path="res://ASSETS/SPRITES/UI/selectedMenu/resource/resourcePotrait_stone.png" id="39_lqoqt"]
 [ext_resource type="Texture2D" uid="uid://djjm1x31d3qef" path="res://ASSETS/SPRITES/UI/selectedMenu/resource/resourcePotrait_tree.png" id="39_p220t"]
 [ext_resource type="Texture2D" uid="uid://dvkic6utacm0k" path="res://ASSETS/SPRITES/UI/unitBuilding/unitBuildingBackground.png" id="40_7sd6b"]
+[ext_resource type="Texture2D" uid="uid://conc2y3kpl7s0" path="res://ASSETS/SPRITES/UI/selectedMenu/resource/resourcePotrait_iron.png" id="40_41sxm"]
+[ext_resource type="Texture2D" uid="uid://b8jemo3xworob" path="res://ASSETS/SPRITES/UI/selectedMenu/resource/resourcePotrait_gold.png" id="41_s7lqb"]
+[ext_resource type="Texture2D" uid="uid://kwr5gjo2ncuw" path="res://ASSETS/SPRITES/UI/selectedMenu/resource/resourcePotrait_berry.png" id="42_a30um"]
+[ext_resource type="Texture2D" uid="uid://djp7p5ch81bwm" path="res://ASSETS/SPRITES/UI/button/button_drop_normal.png" id="43_q11qu"]
+[ext_resource type="Texture2D" uid="uid://ckt5f0dgeywov" path="res://ASSETS/SPRITES/UI/button/button_drop_pressed.png" id="44_oh2c7"]
 [ext_resource type="PackedScene" uid="uid://cs5luiajv1xwr" path="res://OBJECTS/unit_spawn_button.tscn" id="44_s7lqb"]
+[ext_resource type="Texture2D" uid="uid://5aw1ry6p6ful" path="res://ASSETS/SPRITES/UI/button/button_drop_hover.png" id="45_ou2uh"]
 
 [sub_resource type="CompressedTexture2D" id="CompressedTexture2D_lciwa"]
 load_path = "res://.godot/imported/button_buildmenu_cancel0_normal.png-0b226b87be60d3657f83f9b50a0ef7a2.ctex"
@@ -272,27 +279,15 @@ scale = Vector2(4, 4)
 texture = ExtResource("33_isbd1")
 
 [node name="unitPortrait" type="Sprite2D" parent="base/bottomMenu/selectedUnitMenu"]
-position = Vector2(-148, 50)
-scale = Vector2(2, 2)
+position = Vector2(-150.6667, 73.333336)
+scale = Vector2(1.5, 1.5)
 texture = ExtResource("34_12omy")
 
-[node name="healthText" type="Label" parent="base/bottomMenu/selectedUnitMenu"]
-offset_left = -68.0
-offset_top = 32.0
-offset_right = 201.0
-offset_bottom = 58.0
-theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
-theme_override_constants/outline_size = 2
-theme_override_font_sizes/font_size = 18
-text = "Health"
-horizontal_alignment = 1
-clip_text = true
-
 [node name="unitName" type="Label" parent="base/bottomMenu/selectedUnitMenu"]
-offset_left = -199.0
-offset_top = 99.0
-offset_right = -97.0
-offset_bottom = 125.0
+offset_left = -204.00005
+offset_top = 100.0
+offset_right = -96.000046
+offset_bottom = 123.333374
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 2
 theme_override_font_sizes/font_size = 16
@@ -301,17 +296,31 @@ horizontal_alignment = 1
 autowrap_mode = 2
 clip_text = true
 
+[node name="healthText" type="Label" parent="base/bottomMenu/selectedUnitMenu"]
+offset_left = -205.33337
+offset_top = 4.666687
+offset_right = -94.00003
+offset_bottom = 27.333374
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 2
+theme_override_font_sizes/font_size = 16
+text = "10/10"
+horizontal_alignment = 1
+autowrap_mode = 2
+clip_text = true
+
 [node name="healthbar" type="TextureProgressBar" parent="base/bottomMenu/selectedUnitMenu"]
-offset_left = -76.0
-offset_top = 54.0
-offset_right = -1.0
-offset_bottom = 60.0
-scale = Vector2(3.7994156, 3.7994156)
+offset_left = -206.00006
+offset_top = 22.666666
+offset_right = -131.00006
+offset_bottom = 28.666666
+scale = Vector2(1.5, 1.5)
 texture_under = ExtResource("34_wspo0")
 texture_over = ExtResource("35_qjv4d")
 texture_progress = ExtResource("36_qjv4d")
 
 [node name="expText" type="Label" parent="base/bottomMenu/selectedUnitMenu"]
+visible = false
 offset_left = -68.0
 offset_top = 73.0
 offset_right = 201.0
@@ -323,7 +332,178 @@ text = "EXP"
 horizontal_alignment = 1
 clip_text = true
 
+[node name="inv" type="Control" parent="base/bottomMenu/selectedUnitMenu"]
+layout_mode = 3
+anchors_preset = 0
+offset_left = -88.00006
+offset_top = 36.0
+offset_right = 215.33325
+offset_bottom = 124.0
+
+[node name="inventoryText" type="Label" parent="base/bottomMenu/selectedUnitMenu/inv"]
+layout_mode = 0
+offset_top = -18.666485
+offset_right = 304.0
+offset_bottom = 7.333515
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 18
+text = "Inventory"
+horizontal_alignment = 1
+clip_text = true
+
+[node name="woodIcon" type="Sprite2D" parent="base/bottomMenu/selectedUnitMenu/inv"]
+position = Vector2(30.666647, 24.333326)
+texture = ExtResource("39_p220t")
+
+[node name="woodCounter" type="Label" parent="base/bottomMenu/selectedUnitMenu/inv"]
+layout_mode = 0
+offset_left = 5.99998
+offset_top = 42.333313
+offset_right = 55.333294
+offset_bottom = 65.33331
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.5647059)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_constants/outline_size = 5
+theme_override_font_sizes/font_size = 16
+text = "0"
+horizontal_alignment = 1
+clip_text = true
+
+[node name="buttonDrop_wood" type="TextureButton" parent="base/bottomMenu/selectedUnitMenu/inv"]
+layout_mode = 0
+offset_left = 0.666687
+offset_top = 63.333374
+offset_right = 60.666687
+offset_bottom = 87.333374
+texture_normal = ExtResource("43_q11qu")
+texture_pressed = ExtResource("44_oh2c7")
+texture_hover = ExtResource("45_ou2uh")
+
+[node name="stoneIcon" type="Sprite2D" parent="base/bottomMenu/selectedUnitMenu/inv"]
+position = Vector2(91.99992, 24.666656)
+texture = ExtResource("39_lqoqt")
+
+[node name="stoneCounter" type="Label" parent="base/bottomMenu/selectedUnitMenu/inv"]
+layout_mode = 0
+offset_left = 67.33338
+offset_top = 42.66665
+offset_right = 116.666695
+offset_bottom = 65.66666
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.5647059)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_constants/outline_size = 5
+theme_override_font_sizes/font_size = 16
+text = "0"
+horizontal_alignment = 1
+clip_text = true
+
+[node name="buttonDrop_stone" type="TextureButton" parent="base/bottomMenu/selectedUnitMenu/inv"]
+layout_mode = 0
+offset_left = 60.6662
+offset_top = 63.333374
+offset_right = 120.6662
+offset_bottom = 87.333374
+texture_normal = ExtResource("43_q11qu")
+texture_pressed = ExtResource("44_oh2c7")
+texture_hover = ExtResource("45_ou2uh")
+
+[node name="ironIcon" type="Sprite2D" parent="base/bottomMenu/selectedUnitMenu/inv"]
+position = Vector2(151.33331, 24.666656)
+texture = ExtResource("40_41sxm")
+
+[node name="ironCounter" type="Label" parent="base/bottomMenu/selectedUnitMenu/inv"]
+layout_mode = 0
+offset_left = 126.66666
+offset_top = 42.66665
+offset_right = 175.99997
+offset_bottom = 65.66666
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.5647059)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_constants/outline_size = 5
+theme_override_font_sizes/font_size = 16
+text = "0"
+horizontal_alignment = 1
+clip_text = true
+
+[node name="buttonDrop_iron" type="TextureButton" parent="base/bottomMenu/selectedUnitMenu/inv"]
+layout_mode = 0
+offset_left = 120.6662
+offset_top = 63.333374
+offset_right = 180.6662
+offset_bottom = 87.333374
+texture_normal = ExtResource("43_q11qu")
+texture_pressed = ExtResource("44_oh2c7")
+texture_hover = ExtResource("45_ou2uh")
+
+[node name="goldIcon" type="Sprite2D" parent="base/bottomMenu/selectedUnitMenu/inv"]
+position = Vector2(211.33331, 24.666656)
+texture = ExtResource("41_s7lqb")
+
+[node name="goldCounter" type="Label" parent="base/bottomMenu/selectedUnitMenu/inv"]
+layout_mode = 0
+offset_left = 186.66656
+offset_top = 42.66665
+offset_right = 235.99988
+offset_bottom = 65.66666
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.5647059)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_constants/outline_size = 5
+theme_override_font_sizes/font_size = 16
+text = "0"
+horizontal_alignment = 1
+clip_text = true
+
+[node name="buttonDrop_gold" type="TextureButton" parent="base/bottomMenu/selectedUnitMenu/inv"]
+layout_mode = 0
+offset_left = 180.6662
+offset_top = 63.333374
+offset_right = 240.6662
+offset_bottom = 87.333374
+texture_normal = ExtResource("43_q11qu")
+texture_pressed = ExtResource("44_oh2c7")
+texture_hover = ExtResource("45_ou2uh")
+
+[node name="foodIcon" type="Sprite2D" parent="base/bottomMenu/selectedUnitMenu/inv"]
+position = Vector2(270.66666, 24.666656)
+texture = ExtResource("42_a30um")
+
+[node name="foodCounter" type="Label" parent="base/bottomMenu/selectedUnitMenu/inv"]
+layout_mode = 0
+offset_left = 246.0
+offset_top = 42.66665
+offset_right = 295.3333
+offset_bottom = 65.66666
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.5647059)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_constants/outline_size = 5
+theme_override_font_sizes/font_size = 16
+text = "0"
+horizontal_alignment = 1
+clip_text = true
+
+[node name="buttonDrop_food" type="TextureButton" parent="base/bottomMenu/selectedUnitMenu/inv"]
+layout_mode = 0
+offset_left = 240.6662
+offset_top = 63.333336
+offset_right = 300.6662
+offset_bottom = 87.333336
+texture_normal = ExtResource("43_q11qu")
+texture_pressed = ExtResource("44_oh2c7")
+texture_hover = ExtResource("45_ou2uh")
+
 [node name="expbar" type="TextureProgressBar" parent="base/bottomMenu/selectedUnitMenu"]
+visible = false
 offset_left = -76.0
 offset_top = 96.0
 offset_right = -1.0

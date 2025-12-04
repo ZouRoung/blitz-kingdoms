@@ -12,3 +12,6 @@ extends Resource
 
 ## Weltposition der Ressource
 @export var world_position : Vector2i = Vector2i.ZERO
+
+## NEU: Wer farmt hier gerade?
+var current_farmer = null

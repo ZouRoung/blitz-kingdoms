@@ -1,8 +1,9 @@
-[gd_scene load_steps=4 format=3 uid="uid://drugflygomoy3"]
+[gd_scene load_steps=5 format=3 uid="uid://drugflygomoy3"]
 
 [ext_resource type="PackedScene" uid="uid://c0fi1s61yiopx" path="res://OBJECTS/world_gen.tscn" id="1_2sn7y"]
 [ext_resource type="PackedScene" uid="uid://yopmjcm1w1pd" path="res://OBJECTS/game_handler.tscn" id="2_w4tjv"]
 [ext_resource type="PackedScene" uid="uid://b5khnrbjmxvsn" path="res://OBJECTS/ui.tscn" id="3_l2rif"]
+[ext_resource type="PackedScene" uid="uid://dpypx0tmy0vts" path="res://OBJECTS/item_drop.tscn" id="3_rmssh"]
 
 [node name="game" type="Node2D"]
 
@@ -10,9 +11,11 @@
 
 [node name="production_buildings" type="Node2D" parent="."]
 
-[node name="gameHandler" parent="." instance=ExtResource("2_w4tjv")]
+[node name="gameHandler" parent="." node_paths=PackedStringArray("spawn_container") instance=ExtResource("2_w4tjv")]
+item_drop_scene = ExtResource("3_rmssh")
+spawn_container = NodePath("../Entities")
 
-[node name="Units" type="Node2D" parent="."]
+[node name="Entities" type="Node2D" parent="."]
 y_sort_enabled = true
 
 [node name="ui" parent="." instance=ExtResource("3_l2rif")]
