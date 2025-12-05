@@ -26,8 +26,7 @@ var unit_amount : int = 1
 @export var farm_interval : float = 5.0 
 @export var base_farm_amount : int = 10 
 var farm_amount : int = 10 
-## HIER: Radius auf 10.0 verkleinert
-@export var farm_range : float = 10.0 
+@export var farm_range : float = 6.0 
 
 @export_group("Separation")
 @export var separation_radius : float = 6.0 
