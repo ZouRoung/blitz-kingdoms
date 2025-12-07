@@ -271,7 +271,26 @@ texture_normal = ExtResource("15_f450f")
 texture_pressed = ExtResource("16_0yt0s")
 texture_hover = ExtResource("17_xj1yf")
 
+[node name="selectedBaseMenu" type="Node2D" parent="base/bottomMenu"]
+visible = false
+
+[node name="bottomMenuBackground" type="Sprite2D" parent="base/bottomMenu/selectedBaseMenu"]
+position = Vector2(10, 64)
+scale = Vector2(4, 4)
+texture = ExtResource("5_5rhhf")
+
+[node name="cancelMenuBtn" type="TextureButton" parent="base/bottomMenu/selectedBaseMenu"]
+offset_left = 188.0
+offset_top = -36.0
+offset_right = 199.0
+offset_bottom = -25.0
+scale = Vector2(4.001361, 4.001361)
+texture_normal = ExtResource("18_70qqc")
+texture_pressed = ExtResource("19_isbd1")
+texture_hover = ExtResource("20_g244s")
+
 [node name="selectedUnitMenu" type="Node2D" parent="base/bottomMenu"]
+visible = false
 
 [node name="menuBackground" type="Sprite2D" parent="base/bottomMenu/selectedUnitMenu"]
 position = Vector2(10, 60)
