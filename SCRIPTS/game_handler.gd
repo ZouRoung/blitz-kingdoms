@@ -12,6 +12,7 @@ extends Node2D
 @export var spawn_item_scene : PackedScene 
 @export var item_drop_scene : PackedScene ## WICHTIG: Hier item_drop.tscn zuweisen!
 @export var spawn_container : Node2D
+@export var debug_spawn_team_id : int = 1 ## ID 1 = Gegner (Standard für F1 Spawn)
 
 @export_group("Unit Assets")
 @export var portrait_warrior : Texture2D 
@@ -32,7 +33,6 @@ extends Node2D
 @onready var building_menu_container = bottom_menu_root.get_node("buildingMenu")
 @onready var farm_menu_container = building_menu_container.get_node("farmMenu")
 @onready var war_menu_container = building_menu_container.get_node("warMenu")
-## Referenz auf den Zurück-Button im Building Menü
 @onready var building_menu_cancel_btn = building_menu_container.get_node("cancelMenuBtn")
 
 ## --- UI REFERENCES (SELECTED UNIT MENU) ---
@@ -212,7 +212,6 @@ func setup_ui_signals():
 	if building_spawn_btn_node.has_signal("spawn_clicked"):
 		building_spawn_btn_node.spawn_clicked.connect(on_unit_spawn_requested)
 		
-	## Drop Buttons verbinden
 	btn_drop_wood.pressed.connect(func(): on_drop_btn_pressed("wood"))
 	btn_drop_stone.pressed.connect(func(): on_drop_btn_pressed("stone"))
 	btn_drop_iron.pressed.connect(func(): on_drop_btn_pressed("iron"))
@@ -226,7 +225,6 @@ func _process(delta: float):
 	if selected_building != null and selected_building.is_producing:
 		update_building_queue_ui_progress_only()
 	
-	## Live Update für Resource UI während Farming
 	if selected_resource != null and selected_resource_menu.visible:
 		update_selected_resource_ui(selected_resource)
 	
@@ -266,20 +264,20 @@ func _input(event: InputEvent):
 	if event is InputEventKey and event.pressed:
 		if event.keycode == KEY_X and selected_unit != null:
 			selected_unit.add_xp(50)
+		## NEU: Debug Spawn Taste F1
+		if event.keycode == KEY_F1:
+			spawn_warrior_at_mouse()
 
 func handle_right_click_input(mouse_pos: Vector2):
-	## 1. Wenn Baumodus aktiv -> Abbrechen, aber Menü offen lassen
 	if is_building_mode:
 		cancel_building_mode()
 		return
 		
-	## 2. Wenn irgendein Menü offen ist (aber KEIN Baumodus aktiv) -> Schließen
 	if building_menu_container.visible or selected_building_menu.visible:
 		on_building_menu_close_pressed()
 		deselect_all()
 		return
 		
-	## 3. Normaler Rechtsklick (Einheiten bewegen)
 	handle_right_click(mouse_pos)
 
 ## --- CLICK & SELECTION ---
@@ -577,6 +575,8 @@ func spawn_unit(type, amount, pos):
 		spawn_container.add_child(new_unit)
 		
 		new_unit.unit_name = type 
+		## Spieler Team ist immer 0
+		new_unit.team_id = 0
 		
 		if type == "Warrior":
 			new_unit.portrait_texture = portrait_warrior
@@ -586,7 +586,6 @@ func spawn_unit(type, amount, pos):
 		if new_unit.has_method("init_amount"):
 			new_unit.init_amount(amount)
 			
-		## WICHTIG: Signale permanent verbinden!
 		if not new_unit.arrived_at_base.is_connected(_on_unit_arrived_at_base):
 			new_unit.arrived_at_base.connect(_on_unit_arrived_at_base)
 		
@@ -692,13 +691,22 @@ func on_cancel_menu_btn_pressed():
 
 func handle_right_click(mouse_pos: Vector2):
 	if selected_unit != null:
-		## 1. Item Drop?
+		
+		## 1. Unit/Feind?
+		var target_unit = get_unit_at_position(mouse_pos)
+		if target_unit != null:
+			if target_unit != selected_unit and target_unit.team_id != selected_unit.team_id:
+				if not target_unit.is_dead:
+					selected_unit.command_attack(target_unit)
+					return
+		
+		## 2. Item Drop?
 		var drop = get_item_drop_at_position(mouse_pos)
 		if drop != null:
 			collect_item_drop(selected_unit, drop)
 			return
 			
-		## 2. Ressource?
+		## 3. Ressource?
 		var resource = world_gen.get_resource_at_position(mouse_pos)
 		if resource != null:
 			var target_pos = Vector2.ZERO
@@ -713,16 +721,15 @@ func handle_right_click(mouse_pos: Vector2):
 			selected_unit.set_farm_target(resource)
 			return
 			
-		## 3. Basis?
+		## 4. Basis?
 		var local_mouse = building_tilemap.to_local(mouse_pos)
 		var grid_pos_32 = building_tilemap.local_to_map(local_mouse)
 		
-		## FIX: Strenger Vergleich mit 0.1 (exakt draufklicken)
 		if Vector2(grid_pos_32) == Vector2(my_base_grid_pos):
 			return_resources_to_base(selected_unit)
 			return
 			
-		## 4. Normal Move
+		## 5. Normal Move
 		selected_unit.set_target(mouse_pos)
 
 func get_unit_at_position(pos: Vector2) -> UnitBase:
@@ -792,7 +799,11 @@ func highlight_unit(unit: UnitBase):
 
 func unhighlight_unit(unit: UnitBase):
 	var sprite = unit.get_node("unit")
-	if sprite: sprite.modulate = Color.WHITE
+	if sprite: 
+		if unit.team_id != 0:
+			sprite.modulate = Color(1.0, 0.5, 0.5)
+		else:
+			sprite.modulate = Color.WHITE
 
 func highlight_selected_unit(unit: UnitBase):
 	var sprite = unit.get_node("unit")
@@ -800,7 +811,11 @@ func highlight_selected_unit(unit: UnitBase):
 
 func unhighlight_selected_unit(unit: UnitBase):
 	var sprite = unit.get_node("unit")
-	if sprite: sprite.modulate = Color.WHITE
+	if sprite: 
+		if unit.team_id != 0:
+			sprite.modulate = Color(1.0, 0.5, 0.5)
+		else:
+			sprite.modulate = Color.WHITE
 
 func process_time_system(delta: float):
 	time_accumulator += delta
@@ -849,12 +864,24 @@ func update_resource_ui():
 	gold_counter.text = str(resources["gold"])
 	food_counter.text = str(resources["food"])
 
+## --- DEBUG SPAWN FEIND ---
+
 func spawn_warrior_at_mouse():
 	if warrior_scene == null: push_error("Warrior Scene fehlt!"); return
 	if spawn_container == null: push_error("Spawn Container fehlt!"); return
+	
 	var new_warrior = warrior_scene.instantiate()
 	new_warrior.global_position = get_global_mouse_position()
 	spawn_container.add_child(new_warrior)
-	new_warrior.init_amount(10) ## Debug-Spawn mit 10
+	
 	new_warrior.unit_name = "Warrior"
 	new_warrior.portrait_texture = portrait_warrior
+	new_warrior.init_amount(10) 
+	
+	## Setze Team ID (Standard für Debug Gegner = 1)
+	new_warrior.team_id = debug_spawn_team_id
+	
+	## Gegner rot färben zur Unterscheidung
+	if new_warrior.team_id != 0:
+		new_warrior.modulate = Color(1.0, 0.5, 0.5)
+		new_warrior.unit_name = "Enemy Warrior"

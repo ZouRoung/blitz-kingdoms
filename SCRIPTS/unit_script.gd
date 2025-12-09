@@ -2,14 +2,34 @@
 extends CharacterBody2D
 class_name UnitBase
 
-@export_group("Unit Stats")
+@export_group("Identity")
 @export var unit_name : String = "Unit"
+## 0 = Spieler, 1 = Gegner Team 1, etc.
+@export var team_id : int = 0 
+
+@export_group("Unit Stats")
 @export var max_health : float = 100.0 
 @export var health_growth : float = 20.0 
 @export var xp_to_next_level : int = 100
 @export var xp_growth_factor : float = 1.5
 
 var unit_amount : int = 1
+
+@export_group("Combat")
+## Schaden pro 1 Unit (0.1 bedeutet: 10 Units machen 1 Schaden)
+@export var damage_per_unit : float = 0.1
+## Reichweite um Kampf zu STARTEN (Nahkampf)
+@export var attack_range : float = 16.0
+## Reichweite um noch ZUSCHLAGEN zu dürfen (etwas größer als attack_range, erlaubt Hits beim Weglaufen)
+@export var infight_attack_range : float = 19.0
+## Ab dieser Distanz ist der Kampf wirklich vorbei (wenn man FLIEHT)
+@export var disengage_radius : float = 30.0
+## Normale Geschwindigkeit im Kampf (0.5 = 50%)
+@export var combat_speed_penalty : float = 0.5
+## Starke Verlangsamung für den Angreifer in den ersten 10 Sek (0.25 = 25% Speed), damit Opfer fliehen kann
+@export var heavy_combat_speed_penalty : float = 0.25
+## Zeit bis die Leiche verschwindet (in Sekunden)
+@export var corpse_decay_time : float = 60.0
 
 @export_group("Movement")
 @export var base_move_speed : float = 25.0 
@@ -43,6 +63,7 @@ var current_level : int = 1
 var current_velocity := Vector2.ZERO
 var target_position : Vector2
 var is_moving := false
+var is_dead : bool = false
 
 ## INVENTAR
 var inventory = { "wood": 0, "stone": 0, "iron": 0, "gold": 0, "food": 0 }
@@ -55,8 +76,24 @@ var farm_timer : float = 0.0
 var is_farming : bool = false
 var is_delivering_resources : bool = false
 
+## COMBAT STATE MACHINES
+var combat_target : UnitBase = null
+## is_engaged: Wir sind "verwickelt" (Kampfmodus aktiv, langsam laufen)
+var is_engaged : bool = false
+## is_chasing: Wollen wir den Gegner aktiv verfolgen? (False = Flucht oder manuelle Bewegung)
+var is_chasing : bool = false
+## has_turn: Bin ich dran mit schlagen?
+var has_turn : bool = false
+## is_attacking_now: Führt gerade die Schlag-Animation aus (blockiert Bewegung)
+var is_attacking_now : bool = false
+## is_aggressor: Habe ich den Kampf gestartet? (Für Speed Penalty)
+var is_aggressor : bool = false
+## combat_time: Wie lange läuft der Kampf schon?
+var combat_time : float = 0.0
+
 @onready var animation_player : AnimationPlayer = $ani
 @onready var unit_node : Node2D = $unit
+@onready var collision_shape : CollisionShape2D = $CollisionShape2D 
 
 signal stats_changed(unit) 
 signal inventory_changed(unit)
@@ -74,12 +111,14 @@ func _ready():
 	global_position += random_offset
 	target_position = global_position
 	
-	var gh = get_parent().get_parent().get_node("gameHandler")
+	var gh = get_tree().current_scene.find_child("gameHandler", true, false)
 	if gh and gh.has_method("_on_unit_arrived_at_pickup"):
-		arrived_at_pickup.connect(gh._on_unit_arrived_at_pickup)
+		if not arrived_at_pickup.is_connected(gh._on_unit_arrived_at_pickup):
+			arrived_at_pickup.connect(gh._on_unit_arrived_at_pickup)
 	
 	await get_tree().process_frame
-	update_movement(0.016) 
+	if not is_dead:
+		update_movement(0.016) 
 
 func init_amount(amount: int):
 	unit_amount = amount
@@ -96,42 +135,261 @@ func update_farm_amount():
 	farm_amount = base_farm_amount + (unit_amount * 2)
 
 func _physics_process(delta: float):
-	update_movement(delta)
+	if is_dead: return 
+
+	## Kampfzeit hochzählen wenn engagiert
+	if is_engaged:
+		combat_time += delta
+	else:
+		combat_time = 0.0
+
+	## Priorität 1: Kampf-Management (Radius, Engagement)
+	_process_combat_logic(delta)
+	
+	## Priorität 2: Bewegung (nur wenn nicht gerade geschlagen wird)
+	if not is_attacking_now:
+		update_movement(delta)
+		
 	update_farming(delta)
 	update_animation()
 	update_sprite_direction()
 
+## --- NEUES KAMPFSYSTEM (Rundenbasiert & Radius & Chase/Flee) ---
+
+func command_attack(target_unit: UnitBase):
+	if target_unit == self or target_unit.team_id == team_id:
+		return 
+	
+	## FIX: Wenn wir DIESE Unit bereits angreifen, nichts resetten!
+	if combat_target == target_unit:
+		is_chasing = true 
+		print(unit_name, " verfolgt weiterhin ", target_unit.unit_name)
+		return 
+
+	## Reset Logic
+	stop_farming()
+	is_delivering_resources = false
+	target_pickup_node = null
+	
+	combat_target = target_unit
+	is_chasing = true ## Wir wollen verfolgen
+	
+	## Engagement resetten (wir sind ja erst auf dem Weg)
+	is_engaged = false 
+	
+	## Wir sind der Angreifer (Aggressor) -> bekommen Heavy Slow Penalty
+	is_aggressor = true
+	combat_time = 0.0
+	
+	## Als Angreifer starten wir den Turn
+	has_turn = true
+	is_attacking_now = false
+	
+	print(unit_name, " bewegt sich zum Angriff auf ", target_unit.unit_name)
+
+func _process_combat_logic(delta: float):
+	if combat_target == null or combat_target.is_dead:
+		exit_combat_state()
+		return
+
+	var dist = global_position.distance_to(combat_target.global_position)
+	
+	## --- LOGIK TRENNUNG: FLUCHT vs VERFOLGUNG ---
+	
+	## FALL A: Wir wollen FLIEHEN (is_chasing = false)
+	## Hier gilt der kleine disengage_radius (30.0). Wenn wir draußen sind -> Abbruch.
+	if not is_chasing:
+		if dist > disengage_radius:
+			exit_combat_state()
+			return
+			
+	## FALL B: Wir wollen JAGEN (is_chasing = true)
+	if is_chasing:
+		if dist >= disengage_radius and is_engaged:
+			exit_combat_state()
+			return
+
+	## --- ENGAGEMENT MANAGEMENT ---
+	
+	## Wenn wir nah dran sind -> Engaged (Langsam)
+	if dist <= attack_range:
+		if not is_engaged:
+			is_engaged = true
+			
+	## Wenn der Gegner wegrennt und wir etwas Abstand haben -> Nicht mehr Engaged (Schnell hinterher)
+	## 2.0 * 16 = 32px. Wenn er weiter als 32px weg ist, werden wir wieder schnell.
+	if dist > attack_range * 2.0:
+		is_engaged = false
+			
+	## --- ANGRIFFS LOGIK ---
+	if is_engaged and has_turn and not is_attacking_now:
+		if dist <= infight_attack_range: 
+			start_attack_sequence()
+
+func start_attack_sequence():
+	if combat_target == null: return
+	
+	is_attacking_now = true
+	is_moving = false
+	
+	## 1. Animation starten
+	if animation_player.has_animation("attack"):
+		animation_player.play("attack")
+	
+	## 2. Timing simulieren (Schlagpunkt)
+	await get_tree().create_timer(0.25).timeout
+	
+	if is_dead or combat_target == null or combat_target.is_dead:
+		is_attacking_now = false
+		return
+		
+	## 3. Schaden austeilen (Prüfen ob noch in Hit Range)
+	var dist = global_position.distance_to(combat_target.global_position)
+	if dist <= infight_attack_range + 4.0: # Toleranz erhöht, damit Treffer zählen
+		var damage = float(unit_amount) * damage_per_unit
+		combat_target.take_damage(damage, self)
+	
+	## 4. Turn abgeben
+	has_turn = false
+	
+	## 5. Cooldown / Erholung
+	await get_tree().create_timer(0.5).timeout
+	
+	is_attacking_now = false
+
+func take_damage(amount: float, attacker: UnitBase):
+	if is_dead: return
+	
+	current_health -= amount
+	if current_health < 0: current_health = 0
+	stats_changed.emit(self)
+	
+	## Wenn wir getroffen werden, sind wir verwickelt
+	is_engaged = true
+	
+	## Der Verteidiger ist NICHT der Aggressor
+	if combat_target == null:
+		is_aggressor = false 
+	
+	## Visuelles Feedback
+	var sprite = get_node("unit")
+	if sprite:
+		var tween = create_tween()
+		tween.tween_property(sprite, "modulate", Color.RED, 0.1)
+		tween.tween_property(sprite, "modulate", Color.WHITE, 0.1)
+		
+	if animation_player.has_animation("hurt") and animation_player.current_animation != "attack":
+		animation_player.play("hurt")
+
+	## RHYTHMUS: Turn übernehmen
+	if not is_dead:
+		## Kleine Verzögerung bevor wir zurückschlagen
+		await get_tree().create_timer(0.5).timeout
+		has_turn = true
+		
+		## Auto-Retaliation
+		if combat_target == null or combat_target != attacker:
+			combat_target = attacker
+			is_chasing = true ## Wir wehren uns aktiv
+	
+	if current_health <= 0:
+		die()
+
+func die():
+	is_dead = true
+	exit_combat_state()
+	is_moving = false
+	
+	if collision_shape:
+		collision_shape.set_deferred("disabled", true)
+	
+	var loot = clear_inventory()
+	var gh = get_tree().current_scene.find_child("gameHandler", true, false)
+	if gh:
+		for type in loot:
+			if loot[type] > 0:
+				gh.spawn_item_drop(type, loot[type], global_position)
+	
+	if animation_player.has_animation("dead"):
+		animation_player.play("dead")
+	
+	print(unit_name, " ist gestorben.")
+	
+	await get_tree().create_timer(corpse_decay_time).timeout
+	
+	var tween = create_tween()
+	tween.tween_property(self, "modulate:a", 0.0, 1.0)
+	await tween.finished
+	queue_free()
+
+func exit_combat_state():
+	is_engaged = false
+	combat_target = null
+	is_chasing = false
+	is_attacking_now = false
+	has_turn = false
+	is_aggressor = false ## Reset Aggressor
+	combat_time = 0.0
+	
+	if not is_moving: 
+		target_position = global_position
+
+## --- MOVEMENT & SPEED ---
+
 func get_current_speed() -> float:
 	var speed = base_move_speed
 	var troops_factor = 1.0 - (float(unit_amount) / 100.0 * speed_penalty_per_100_troops)
+	
 	var total_resources = 0
 	for key in inventory:
 		total_resources += inventory[key]
 	var load_factor = 1.0 - (float(total_resources) / 100.0 * speed_penalty_per_100_resource)
-	var final_factor = max(min_speed_factor, troops_factor * load_factor)
+	
+	var final_factor = troops_factor * load_factor
+	
+	## KAMPF GESCHWINDIGKEIT
+	if is_engaged:
+		## Wenn ich Aggressor bin und Kampfzeit < 10 Sek -> Heavy Penalty
+		if is_aggressor and combat_time < 10.0:
+			final_factor *= heavy_combat_speed_penalty # 0.25 (Sehr langsam)
+		else:
+			final_factor *= combat_speed_penalty # 0.5 (Normal langsam)
+		
+	final_factor = max(min_speed_factor, final_factor)
 	return speed * final_factor
 
 func update_movement(delta: float):
-	var distance_to_target = global_position.distance_to(target_position)
+	var effective_target = target_position
+	
+	## Verfolgungs-Logik:
+	if is_chasing and combat_target != null and not combat_target.is_dead:
+		effective_target = combat_target.global_position
+
+	var distance_to_target = global_position.distance_to(effective_target)
 	var desired_velocity = Vector2.ZERO
 	var current_speed = get_current_speed()
 	
-	if distance_to_target > stop_distance:
-		var direction = (target_position - global_position).normalized()
+	## Stop Distance
+	var current_stop_dist = stop_distance
+	## Wenn wir jagen, müssen wir nah ran
+	if is_chasing and combat_target != null:
+		current_stop_dist = attack_range - 2.0 
+	
+	if distance_to_target > current_stop_dist:
+		var direction = (effective_target - global_position).normalized()
 		desired_velocity = direction * current_speed
 		is_moving = true
 		
-		## Wenn wir farmen aber uns bewegen müssen (weil geschubst oder noch nicht da):
-		## Pausieren wir nur. Der harte Abbruch passiert in update_farming.
-		if is_farming:
-			is_farming = false
+		if is_farming: is_farming = false
 	else:
-		## ANGEKOMMEN
 		is_moving = false
 		desired_velocity = Vector2.ZERO
-		target_position = global_position 
 		
-		if target_resource_node != null and not is_farming:
+		## Angekommen
+		if not is_chasing: 
+			target_position = global_position
+		
+		if target_resource_node != null and not is_farming and not is_engaged:
 			start_farming()
 			
 		if is_delivering_resources:
@@ -144,7 +402,6 @@ func update_movement(delta: float):
 			target_pickup_node = null
 	
 	var separation = get_separation_vector()
-	## Separation ist immer aktiv!
 	if is_moving: desired_velocity += separation
 	else: desired_velocity = separation
 	
@@ -162,9 +419,7 @@ func get_separation_vector() -> Vector2:
 	
 	for neighbor in parent.get_children():
 		if neighbor == self or not neighbor is UnitBase: continue
-		
-		## HIER GEÄNDERT: Wir ignorieren niemanden mehr. 
-		## Auch wenn jemand farmt, wird er weggeschoben, wenn es zu eng ist.
+		if neighbor.is_dead: continue 
 		
 		var dist = global_position.distance_to(neighbor.global_position)
 		if dist < 0.1:
@@ -185,36 +440,47 @@ func get_separation_vector() -> Vector2:
 		return separation_vector * separation_force
 	return Vector2.ZERO
 
+func set_target(new_target: Vector2):
+	target_position = new_target
+	
+	is_farming = false
+	if target_resource_node != null:
+		if target_resource_node.current_farmer == self:
+			target_resource_node.current_farmer = null
+		target_resource_node = null
+	
+	is_delivering_resources = false
+	target_pickup_node = null 
+	
+	## Manuelles Bewegen -> Verfolgung stoppen (Flucht)
+	is_chasing = false 
+	is_moving = true 
+
 func set_farm_target(res_data):
 	target_resource_node = res_data
 	target_pickup_node = null 
 	farm_target_global_position = target_position
+	exit_combat_state() 
 
 func set_pickup_target(item_node):
 	target_pickup_node = item_node
 	target_resource_node = null 
 	stop_farming() 
+	exit_combat_state() 
 	is_farming = false
 	is_delivering_resources = false
 
 func start_farming():
 	if target_resource_node == null: return
 	
-	## EXKLUSIVES FARMEN: Prüfen, ob jemand anderes farmt
 	if target_resource_node.current_farmer != null and target_resource_node.current_farmer != self:
 		if is_instance_valid(target_resource_node.current_farmer):
 			var old_farmer = target_resource_node.current_farmer
-			
-			## Alten Farmer stoppen
 			if old_farmer.has_method("stop_farming"):
 				old_farmer.stop_farming()
-			
-			## WICHTIG: Wir nutzen die Variable 'old_farmer'
 			old_farmer.target_resource_node = null
 	
-	## Uns eintragen
 	target_resource_node.current_farmer = self
-	
 	is_farming = true
 	farm_timer = 0.0
 	print(unit_name, " startet Farming an ", target_resource_node.resource_type)
@@ -235,11 +501,9 @@ func update_farming(delta):
 		target_resource_node = null 
 		return
 
-	## DISTANZ CHECK: Wenn wir > farm_range (10.0) entfernt sind -> ABBRUCH!
 	if global_position.distance_to(farm_target_global_position) > farm_range:
-		print(unit_name, " wurde weggeschoben. Farming gestoppt.")
 		stop_farming()
-		target_resource_node = null ## Ziel vergessen!
+		target_resource_node = null 
 		return
 
 	farm_timer += delta
@@ -252,8 +516,7 @@ func perform_farm_tick():
 		target_resource_node = null
 		stop_farming()
 		return
-	
-	## Sicherheitscheck Distanz auch hier nochmal
+		
 	if global_position.distance_to(farm_target_global_position) > farm_range:
 		stop_farming()
 		target_resource_node = null
@@ -263,7 +526,7 @@ func perform_farm_tick():
 	target_resource_node.current_supply -= amount_to_take
 	
 	if target_resource_node.current_supply <= 0:
-		var world_gen = get_parent().get_parent().get_node("worldGen")
+		var world_gen = get_tree().current_scene.find_child("worldGen", true, false)
 		if world_gen and world_gen.has_method("on_resource_depleted"):
 			world_gen.on_resource_depleted(target_resource_node)
 		
@@ -286,7 +549,10 @@ func drop_resource(type: String):
 	var amount = inventory[type]
 	inventory[type] = 0
 	inventory_changed.emit(self)
-	get_parent().get_parent().get_node("gameHandler").spawn_item_drop(type, amount, global_position) 
+	
+	var gh = get_tree().current_scene.find_child("gameHandler", true, false)
+	if gh:
+		gh.spawn_item_drop(type, amount, global_position) 
 	
 func add_resource_from_drop(type: String, amount: int):
 	if inventory.has(type):
@@ -315,6 +581,16 @@ func level_up():
 	print(unit_name, " Level Up! New Level:", current_level, " MaxHP:", max_health)
 
 func update_animation():
+	if is_dead:
+		if animation_player.current_animation != "dead":
+			animation_player.play("dead")
+		return
+
+	if is_attacking_now: return 
+
+	if animation_player.current_animation == "hurt" and animation_player.is_playing():
+		return 
+
 	if is_moving:
 		animation_player.play("walk")
 	else:
@@ -323,26 +599,20 @@ func update_animation():
 				animation_player.play("farming")
 			else:
 				animation_player.play("idle")
+		elif is_engaged:
+			animation_player.play("idle")
 		else:
 			animation_player.play("idle")
 
 func update_sprite_direction():
-	if abs(current_velocity.x) > 1.0:
+	if is_dead: return
+	
+	if is_engaged and combat_target != null:
+		var dir_x = combat_target.global_position.x - global_position.x
+		if abs(dir_x) > 1.0:
+			unit_node.scale.x = -abs(unit_node.scale.x) if dir_x < 0 else abs(unit_node.scale.x)
+	elif abs(current_velocity.x) > 1.0:
 		unit_node.scale.x = -abs(unit_node.scale.x) if current_velocity.x < 0 else abs(unit_node.scale.x)
-
-func set_target(new_target: Vector2):
-	target_position = new_target
-	
-	## Wenn manuell: Alles stoppen und vergessen
-	is_farming = false
-	if target_resource_node != null:
-		if target_resource_node.current_farmer == self:
-			target_resource_node.current_farmer = null
-		target_resource_node = null
-	
-	is_delivering_resources = false
-	target_pickup_node = null 
-	is_moving = true 
 
 func get_world_position() -> Vector2:
 	return global_position
