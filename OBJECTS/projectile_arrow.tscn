@@ -1,0 +1,108 @@
+[gd_scene load_steps=7 format=3 uid="uid://d2dpcg08w7xjt"]
+
+[ext_resource type="Texture2D" uid="uid://bm23ut00u22vi" path="res://ASSETS/SPRITES/UNITS/ARCHER/archer_arrow.png" id="1_1jf3d"]
+[ext_resource type="Script" uid="uid://dn2hrg3lxup5m" path="res://SCRIPTS/projectile_arrow.gd" id="1_7x7dh"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_7x7dh"]
+
+[sub_resource type="Animation" id="Animation_u4sdj"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("basic:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(0, 0)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("basic:rotation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [0.0]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("basic:scale")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(1, 1)]
+}
+
+[sub_resource type="Animation" id="Animation_cs6yk"]
+resource_name = "landed"
+length = 0.14
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("basic:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.033333335, 0.07093469, 0.10093885, 0.13333334),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector2(-0.62499994, 0.46874994), Vector2(1.5624998, -1.7187498), Vector2(0.1937288, 0.17752326), Vector2(0.881825, -0.845338), Vector2(0, 0)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("basic:rotation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.033333335, 0.07093469, 0.10093885, 0.13333334),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [0.0, 0.0, 0.0, 0.0, 0.0]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("basic:scale")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 0.033333335, 0.07093469, 0.10093885, 0.13333334),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector2(1, 1), Vector2(1, 1), Vector2(1, 1), Vector2(1, 1), Vector2(1, 1)]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_xfi10"]
+_data = {
+&"RESET": SubResource("Animation_u4sdj"),
+&"landed": SubResource("Animation_cs6yk")
+}
+
+[node name="projectile_arrow" type="CharacterBody2D"]
+script = ExtResource("1_7x7dh")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_7x7dh")
+disabled = true
+
+[node name="basic" type="Node2D" parent="."]
+
+[node name="arrow" type="Sprite2D" parent="basic"]
+texture = ExtResource("1_1jf3d")
+
+[node name="ani" type="AnimationPlayer" parent="."]
+libraries = {
+&"": SubResource("AnimationLibrary_xfi10")
+}

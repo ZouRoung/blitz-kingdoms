@@ -8,7 +8,7 @@ extends Camera2D
 @export_group("Zoom Settings")
 @export var zoom_speed : float = 0.1
 @export var max_zoom : float = 9.0
-## min_zoom wird automatisch berechnet
+@export var spawn_zoom : float = 6.0
 
 @export_group("Map Boundaries")
 @export var map_width : int = 200
@@ -61,7 +61,7 @@ func calculate_min_zoom_and_init():
 
 ## NEU: Wird vom GameHandler aufgerufen, um zum Spawn zu springen
 func focus_position_max_zoom(target_pos: Vector2):
-	zoom = Vector2(max_zoom, max_zoom)
+	zoom = Vector2(spawn_zoom, spawn_zoom)
 	position = target_pos
 	apply_boundaries()
 
