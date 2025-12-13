@@ -16,17 +16,26 @@ class_name UnitBase
 var unit_amount : int = 1
 
 @export_group("Combat")
+@export var unit_type_range = false
+## Drag & Drop hier die projectile_arrow.tscn rein (nur wichtig für Archer)
+@export var projectile_scene : PackedScene 
+
+## Mindest-Reichweite für Archer (schießt nicht, wenn Gegner näher als das ist)
+@export var min_attack_range : float = 50.0
+
+## Cooldown für Fernkämpfer
+@export var attack_cooldown : float = 2.0
 ## Schaden pro 1 Unit (0.1 bedeutet: 10 Units machen 1 Schaden)
 @export var damage_per_unit : float = 0.1
-## Reichweite um Kampf zu STARTEN (Nahkampf)
+## Reichweite um Kampf zu STARTEN
 @export var attack_range : float = 16.0
-## Reichweite um noch ZUSCHLAGEN zu dürfen (etwas größer als attack_range, erlaubt Hits beim Weglaufen)
+## Reichweite um noch ZUSCHLAGEN zu dürfen
 @export var infight_attack_range : float = 19.0
 ## Ab dieser Distanz ist der Kampf wirklich vorbei (wenn man FLIEHT)
 @export var disengage_radius : float = 30.0
 ## Normale Geschwindigkeit im Kampf (0.5 = 50%)
 @export var combat_speed_penalty : float = 0.5
-## Starke Verlangsamung für den Angreifer in den ersten 10 Sek (0.25 = 25% Speed), damit Opfer fliehen kann
+## Starke Verlangsamung für den Angreifer in den ersten Sekunden
 @export var heavy_combat_speed_penalty : float = 0.25
 ## Zeit bis die Leiche verschwindet (in Sekunden)
 @export var corpse_decay_time : float = 60.0
@@ -78,18 +87,15 @@ var is_delivering_resources : bool = false
 
 ## COMBAT STATE MACHINES
 var combat_target : UnitBase = null
-## is_engaged: Wir sind "verwickelt" (Kampfmodus aktiv, langsam laufen)
 var is_engaged : bool = false
 ## is_chasing: Wollen wir den Gegner aktiv verfolgen? (False = Flucht oder manuelle Bewegung)
 var is_chasing : bool = false
-## has_turn: Bin ich dran mit schlagen?
 var has_turn : bool = false
-## is_attacking_now: Führt gerade die Schlag-Animation aus (blockiert Bewegung)
 var is_attacking_now : bool = false
-## is_aggressor: Habe ich den Kampf gestartet? (Für Speed Penalty)
 var is_aggressor : bool = false
-## combat_time: Wie lange läuft der Kampf schon?
 var combat_time : float = 0.0
+## Timer für Fernkampf-Cooldown
+var current_attack_cooldown : float = 0.0 
 
 @onready var animation_player : AnimationPlayer = $ani
 @onready var unit_node : Node2D = $unit
@@ -142,6 +148,10 @@ func _physics_process(delta: float):
 		combat_time += delta
 	else:
 		combat_time = 0.0
+		
+	## Cooldown für Archer runterzählen
+	if current_attack_cooldown > 0:
+		current_attack_cooldown -= delta
 
 	## Priorität 1: Kampf-Management (Radius, Engagement)
 	_process_combat_logic(delta)
@@ -154,7 +164,7 @@ func _physics_process(delta: float):
 	update_animation()
 	update_sprite_direction()
 
-## --- NEUES KAMPFSYSTEM (Rundenbasiert & Radius & Chase/Flee) ---
+## --- KAMPFSYSTEM (Old Logic + New Archer Features) ---
 
 func command_attack(target_unit: UnitBase):
 	if target_unit == self or target_unit.team_id == team_id:
@@ -163,7 +173,6 @@ func command_attack(target_unit: UnitBase):
 	## FIX: Wenn wir DIESE Unit bereits angreifen, nichts resetten!
 	if combat_target == target_unit:
 		is_chasing = true 
-		print(unit_name, " verfolgt weiterhin ", target_unit.unit_name)
 		return 
 
 	## Reset Logic
@@ -177,15 +186,19 @@ func command_attack(target_unit: UnitBase):
 	## Engagement resetten (wir sind ja erst auf dem Weg)
 	is_engaged = false 
 	
-	## Wir sind der Angreifer (Aggressor) -> bekommen Heavy Slow Penalty
+	## Wir sind der Angreifer (Aggressor)
 	is_aggressor = true
 	combat_time = 0.0
 	
 	## Als Angreifer starten wir den Turn
-	has_turn = true
 	is_attacking_now = false
 	
-	print(unit_name, " bewegt sich zum Angriff auf ", target_unit.unit_name)
+	## Spezial Archer Reset
+	if unit_type_range:
+		has_turn = true
+		current_attack_cooldown = 0.0
+	else:
+		has_turn = true
 
 func _process_combat_logic(delta: float):
 	if combat_target == null or combat_target.is_dead:
@@ -197,17 +210,24 @@ func _process_combat_logic(delta: float):
 	## --- LOGIK TRENNUNG: FLUCHT vs VERFOLGUNG ---
 	
 	## FALL A: Wir wollen FLIEHEN (is_chasing = false)
-	## Hier gilt der kleine disengage_radius (30.0). Wenn wir draußen sind -> Abbruch.
+	## Hier gilt der kleine disengage_radius. Wenn wir draußen sind -> Abbruch.
 	if not is_chasing:
 		if dist > disengage_radius:
 			exit_combat_state()
 			return
 			
 	## FALL B: Wir wollen JAGEN (is_chasing = true)
-	if is_chasing:
-		if dist >= disengage_radius and is_engaged:
-			exit_combat_state()
-			return
+	else:
+		if not unit_type_range:
+			## Warrior Break Condition
+			if dist >= disengage_radius and is_engaged:
+				exit_combat_state()
+				return
+		else:
+			## Archer Break Condition (Darf größer sein)
+			if dist >= attack_range * 2.0 and is_engaged:
+				exit_combat_state()
+				return
 
 	## --- ENGAGEMENT MANAGEMENT ---
 	
@@ -217,14 +237,27 @@ func _process_combat_logic(delta: float):
 			is_engaged = true
 			
 	## Wenn der Gegner wegrennt und wir etwas Abstand haben -> Nicht mehr Engaged (Schnell hinterher)
-	## 2.0 * 16 = 32px. Wenn er weiter als 32px weg ist, werden wir wieder schnell.
+	## Warrior Logic (Old State: attack_range * 2.0)
 	if dist > attack_range * 2.0:
 		is_engaged = false
 			
 	## --- ANGRIFFS LOGIK ---
-	if is_engaged and has_turn and not is_attacking_now:
-		if dist <= infight_attack_range: 
-			start_attack_sequence()
+	## WICHTIG: Wir greifen nur an, wenn is_chasing == true ist!
+	## Das garantiert, dass wir beim Fliehen (is_chasing = false) nicht stehen bleiben um zu schlagen.
+	
+	if is_engaged and is_chasing and not is_attacking_now:
+		
+		if unit_type_range:
+			## ARCHER LOGIK
+			if current_attack_cooldown <= 0:
+				if dist > min_attack_range:
+					start_attack_sequence()
+				else:
+					pass ## Zu nah für Bogen
+		else:
+			## WARRIOR LOGIK
+			if has_turn and dist <= infight_attack_range:
+				start_attack_sequence()
 
 func start_attack_sequence():
 	if combat_target == null: return
@@ -232,30 +265,68 @@ func start_attack_sequence():
 	is_attacking_now = true
 	is_moving = false
 	
-	## 1. Animation starten
-	if animation_player.has_animation("attack"):
-		animation_player.play("attack")
-	
-	## 2. Timing simulieren (Schlagpunkt)
-	await get_tree().create_timer(0.25).timeout
-	
-	if is_dead or combat_target == null or combat_target.is_dead:
-		is_attacking_now = false
-		return
+	## --- FERNKAMPF ABLAUF ---
+	if unit_type_range:
+		## 1. Animation
+		if animation_player.has_animation("attack"):
+			animation_player.play("attack")
+			
+		## 2. Timing
+		await get_tree().create_timer(0.4).timeout 
 		
-	## 3. Schaden austeilen (Prüfen ob noch in Hit Range)
-	var dist = global_position.distance_to(combat_target.global_position)
-	if dist <= infight_attack_range + 4.0: # Toleranz erhöht, damit Treffer zählen
-		var damage = float(unit_amount) * damage_per_unit
-		combat_target.take_damage(damage, self)
+		## Check vor Spawn
+		if not is_dead and combat_target != null:
+			spawn_projectile()
+		
+		## 3. Cooldown
+		current_attack_cooldown = attack_cooldown
+		
+		## 4. Ende
+		await get_tree().create_timer(0.2).timeout
+		is_attacking_now = false
+		
+	## --- NAHKAMPF ABLAUF ---
+	else:
+		## 1. Animation starten
+		if animation_player.has_animation("attack"):
+			animation_player.play("attack")
+		
+		## 2. Timing simulieren
+		await get_tree().create_timer(0.25).timeout
+		
+		if is_dead or combat_target == null or combat_target.is_dead:
+			is_attacking_now = false
+			return
+			
+		## 3. Schaden austeilen (Prüfen ob noch in Hit Range)
+		var dist = global_position.distance_to(combat_target.global_position)
+		if dist <= infight_attack_range + 4.0: 
+			var damage = float(unit_amount) * damage_per_unit
+			combat_target.take_damage(damage, self)
+		
+		## 4. Turn abgeben
+		has_turn = false
+		
+		## 5. Cooldown / Erholung
+		await get_tree().create_timer(0.5).timeout
+		is_attacking_now = false
+
+func spawn_projectile():
+	if projectile_scene == null:
+		print("FEHLER: Keine Projectile Scene im Inspector zugewiesen!")
+		return
+	if combat_target == null: return
+		
+	var proj = projectile_scene.instantiate()
+	proj.global_position = global_position + Vector2(0, -10)
 	
-	## 4. Turn abgeben
-	has_turn = false
+	var damage = float(unit_amount) * damage_per_unit
+	var t_pos = combat_target.global_position
 	
-	## 5. Cooldown / Erholung
-	await get_tree().create_timer(0.5).timeout
-	
-	is_attacking_now = false
+	if proj.has_method("setup"):
+		proj.setup(t_pos, damage, combat_target, self)
+		
+	get_parent().add_child(proj)
 
 func take_damage(amount: float, attacker: UnitBase):
 	if is_dead: return
@@ -264,8 +335,11 @@ func take_damage(amount: float, attacker: UnitBase):
 	if current_health < 0: current_health = 0
 	stats_changed.emit(self)
 	
-	## Wenn wir getroffen werden, sind wir verwickelt
-	is_engaged = true
+	## FIX: Warrior wird nicht engaged/chased wenn von Range getroffen
+	var hit_by_ranged = attacker.unit_type_range
+	
+	if not hit_by_ranged:
+		is_engaged = true
 	
 	## Der Verteidiger ist NICHT der Aggressor
 	if combat_target == null:
@@ -281,7 +355,7 @@ func take_damage(amount: float, attacker: UnitBase):
 	if animation_player.has_animation("hurt") and animation_player.current_animation != "attack":
 		animation_player.play("hurt")
 
-	## RHYTHMUS: Turn übernehmen
+	## RHYTHMUS & RETALIATION
 	if not is_dead:
 		## Kleine Verzögerung bevor wir zurückschlagen
 		await get_tree().create_timer(0.5).timeout
@@ -289,8 +363,13 @@ func take_damage(amount: float, attacker: UnitBase):
 		
 		## Auto-Retaliation
 		if combat_target == null or combat_target != attacker:
-			combat_target = attacker
-			is_chasing = true ## Wir wehren uns aktiv
+			if hit_by_ranged:
+				## Wenn Archer schießt -> Wir ignorieren es (kein Auto-Chase)
+				pass
+			else:
+				## Wenn Warrior schlägt -> Wir drehen uns um und kämpfen
+				combat_target = attacker
+				is_chasing = true 
 	
 	if current_health <= 0:
 		die()
@@ -330,6 +409,7 @@ func exit_combat_state():
 	has_turn = false
 	is_aggressor = false ## Reset Aggressor
 	combat_time = 0.0
+	current_attack_cooldown = 0.0
 	
 	if not is_moving: 
 		target_position = global_position
@@ -349,11 +429,20 @@ func get_current_speed() -> float:
 	
 	## KAMPF GESCHWINDIGKEIT
 	if is_engaged:
-		## Wenn ich Aggressor bin und Kampfzeit < 10 Sek -> Heavy Penalty
-		if is_aggressor and combat_time < 10.0:
-			final_factor *= heavy_combat_speed_penalty # 0.25 (Sehr langsam)
-		else:
-			final_factor *= combat_speed_penalty # 0.5 (Normal langsam)
+		var penalty_active = true
+		
+		## SPEZIALREGEL: Wenn ich vom Archer angegriffen werde (und nicht selbst Aggressor bin)
+		if not is_aggressor and combat_target != null and combat_target.unit_type_range:
+			penalty_active = false
+		
+		if penalty_active:
+			var slow_duration = 10.0
+			if unit_type_range: slow_duration = 5.0
+			
+			if is_aggressor and combat_time < slow_duration:
+				final_factor *= heavy_combat_speed_penalty 
+			else:
+				final_factor *= combat_speed_penalty 
 		
 	final_factor = max(min_speed_factor, final_factor)
 	return speed * final_factor
@@ -373,7 +462,10 @@ func update_movement(delta: float):
 	var current_stop_dist = stop_distance
 	## Wenn wir jagen, müssen wir nah ran
 	if is_chasing and combat_target != null:
-		current_stop_dist = attack_range - 2.0 
+		if unit_type_range:
+			current_stop_dist = attack_range * 0.8
+		else:
+			current_stop_dist = attack_range - 2.0 
 	
 	if distance_to_target > current_stop_dist:
 		var direction = (effective_target - global_position).normalized()
@@ -453,6 +545,9 @@ func set_target(new_target: Vector2):
 	target_pickup_node = null 
 	
 	## Manuelles Bewegen -> Verfolgung stoppen (Flucht)
+	if is_chasing or is_engaged:
+		exit_combat_state() ## Dies setzt is_chasing auf false und engaged auf false
+	
 	is_chasing = false 
 	is_moving = true 
 
@@ -483,7 +578,6 @@ func start_farming():
 	target_resource_node.current_farmer = self
 	is_farming = true
 	farm_timer = 0.0
-	print(unit_name, " startet Farming an ", target_resource_node.resource_type)
 
 func stop_farming():
 	is_farming = false
@@ -578,7 +672,6 @@ func level_up():
 	max_health += health_growth
 	current_health = max_health 
 	xp_to_next_level = int(xp_to_next_level * xp_growth_factor)
-	print(unit_name, " Level Up! New Level:", current_level, " MaxHP:", max_health)
 
 func update_animation():
 	if is_dead:

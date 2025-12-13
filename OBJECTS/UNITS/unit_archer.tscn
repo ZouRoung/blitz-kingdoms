@@ -1,6 +1,7 @@
-[gd_scene load_steps=16 format=3 uid="uid://do3xpjagdp1u7"]
+[gd_scene load_steps=17 format=3 uid="uid://do3xpjagdp1u7"]
 
 [ext_resource type="Script" uid="uid://cn7kdud0q882" path="res://SCRIPTS/unit_script.gd" id="1_00t6s"]
+[ext_resource type="PackedScene" uid="uid://d2dpcg08w7xjt" path="res://OBJECTS/projectile_arrow.tscn" id="2_qx5hm"]
 [ext_resource type="Texture2D" uid="uid://c6u8k7ti0hq36" path="res://ASSETS/SPRITES/UNITS/WARRIOR/warrior_shadow.png" id="2_t531r"]
 [ext_resource type="Texture2D" uid="uid://dng4cc4ss205u" path="res://ASSETS/SPRITES/UNITS/ARCHER/archer_bow.png" id="3_00t6s"]
 [ext_resource type="Texture2D" uid="uid://b38eoqeb4endv" path="res://ASSETS/SPRITES/UNITS/ARCHER/archer_body.png" id="4_00t6s"]
@@ -942,6 +943,10 @@ y_sort_enabled = true
 scale = Vector2(0.25, 0.25)
 collision_mask = 0
 script = ExtResource("1_00t6s")
+unit_type_range = true
+projectile_scene = ExtResource("2_qx5hm")
+attack_range = 150.0
+infight_attack_range = 150.0
 
 [node name="unit" type="Node2D" parent="."]
 position = Vector2(0, -20)

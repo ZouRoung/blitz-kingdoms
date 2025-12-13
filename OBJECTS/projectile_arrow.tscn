@@ -4,6 +4,7 @@
 [ext_resource type="Script" uid="uid://dn2hrg3lxup5m" path="res://SCRIPTS/projectile_arrow.gd" id="1_7x7dh"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_7x7dh"]
+size = Vector2(6.9991827, 4.2347994)
 
 [sub_resource type="Animation" id="Animation_u4sdj"]
 length = 0.001
@@ -94,12 +95,14 @@ _data = {
 script = ExtResource("1_7x7dh")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(-0.43074942, 0.3707471)
 shape = SubResource("RectangleShape2D_7x7dh")
 disabled = true
 
 [node name="basic" type="Node2D" parent="."]
 
 [node name="arrow" type="Sprite2D" parent="basic"]
+scale = Vector2(0.5, 0.5)
 texture = ExtResource("1_1jf3d")
 
 [node name="ani" type="AnimationPlayer" parent="."]
